@@ -17,6 +17,7 @@ import com.souleven.nothingos.hooks.PowerMenuHooks
 import com.souleven.nothingos.hooks.BackGestureKillHooks
 import com.souleven.nothingos.hooks.SystemFrameworkHooks
 import com.souleven.nothingos.hooks.NotificationIconHooks
+import com.souleven.nothingos.hooks.SilentIconHooks
 import com.souleven.nothingos.hooks.SpacingHooks
 import android.app.Application
 import android.app.Instrumentation
@@ -96,6 +97,7 @@ class MainHook : IXposedHookLoadPackage {
             hooks.add("PowerMenuHooks" to PowerMenuHooks())
             hooks.add("BackGestureKillHooks" to BackGestureKillHooks())
             hooks.add("NotificationIconHooks" to NotificationIconHooks())
+            hooks.add("SilentIconHooks" to SilentIconHooks())
             hooks.add("SpacingHooks" to SpacingHooks())
             hooks.add("StatusBarGestureHooks" to StatusBarGestureHooks())
             hooks.add("TorchHooks" to TorchHooks())
