@@ -18,43 +18,51 @@ class SilentIconHooks : HookModule {
         private const val ICON_CONTROLLER_FIELD = "mIconController"
         private const val MUTE_SLOT_FIELD = "mSlotMute"
         private const val MUTE_VISIBLE_FIELD = "mMuteVisible"
+
+        // SystemUI can expose more than one ClassLoader in the same process.
+        // Once the real PhoneStatusBarPolicy class is hooked, ignore later
+        // callbacks whose ClassLoader cannot see that class.
+        private val hookLock = Any()
+        @Volatile private var hookInstalled = false
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val policies = WeakHashMap<Any, Boolean>()
 
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam, prefs: Prefs) {
-        val policyClass = XposedHelpers.findClassIfExists(POLICY_CLASS, lpparam.classLoader)
-        if (policyClass == null) {
-            XposedBridge.log("NothingTweaks: [SilentIcon] PhoneStatusBarPolicy not found")
-            return
-        }
+        synchronized(hookLock) {
+            if (hookInstalled) return
 
-        val methodCount = policyClass.declaredMethods.count { it.name == UPDATE_METHOD }
-        if (methodCount == 0) {
-            XposedBridge.log("NothingTweaks: [SilentIcon] $UPDATE_METHOD not found in $POLICY_CLASS")
-            return
-        }
+            val policyClass = XposedHelpers.findClassIfExists(POLICY_CLASS, lpparam.classLoader)
+                ?: return // Another ClassLoader in this process may not contain SystemUI classes.
 
-        try {
-            val hooks = XposedBridge.hookAllMethods(
-                policyClass,
-                UPDATE_METHOD,
-                object : XC_MethodHook() {
-                    override fun afterHookedMethod(param: MethodHookParam) {
-                        val policy = param.thisObject ?: return
-                        synchronized(policies) { policies[policy] = true }
-                        applyVisibility(policy, prefs)
+            val methodCount = policyClass.declaredMethods.count { it.name == UPDATE_METHOD }
+            if (methodCount == 0) {
+                XposedBridge.log("NothingTweaks: [SilentIcon] $UPDATE_METHOD not found in $POLICY_CLASS")
+                return
+            }
+
+            try {
+                val hooks = XposedBridge.hookAllMethods(
+                    policyClass,
+                    UPDATE_METHOD,
+                    object : XC_MethodHook() {
+                        override fun afterHookedMethod(param: MethodHookParam) {
+                            val policy = param.thisObject ?: return
+                            synchronized(policies) { policies[policy] = true }
+                            applyVisibility(policy, prefs)
+                        }
                     }
-                }
-            )
-            XposedBridge.log(
-                "NothingTweaks: [SilentIcon] Hooked $POLICY_CLASS#$UPDATE_METHOD (${hooks.size} overload(s))"
-            )
-        } catch (t: Throwable) {
-            XposedBridge.log("NothingTweaks: [SilentIcon] Failed to hook $UPDATE_METHOD: ${t.message}")
-            XposedBridge.log(t)
-            return
+                )
+                hookInstalled = true
+                XposedBridge.log(
+                    "NothingTweaks: [SilentIcon] Hooked $POLICY_CLASS#$UPDATE_METHOD (${hooks.size} overload(s))"
+                )
+            } catch (t: Throwable) {
+                XposedBridge.log("NothingTweaks: [SilentIcon] Failed to hook $UPDATE_METHOD: ${t.message}")
+                XposedBridge.log(t)
+                return
+            }
         }
 
         prefs.addListener {
