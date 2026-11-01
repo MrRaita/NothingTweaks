@@ -62,6 +62,9 @@
     <!-- Status bar -->
     <string name="cat_statusbar">Durum Çubuğu</string>
 
+    <string name="pref_hide_silent_icon_title">Sessiz mod simgesini gizle</string>
+    <string name="pref_hide_silent_icon_summary">Sessiz modu değiştirmeden durum çubuğundaki ses/sessiz simgesini gizler.</string>
+
     <string name="pref_force_earphone_icon">Tüm kulaklıklar için kulaklık simgesi</string>
     <string name="pref_force_earphone_icon_desc">Herhangi bir ses cihazı bağlandığında genel Bluetooth simgesi yerine Nothing kulaklık simgesini gösterir.</string>
 

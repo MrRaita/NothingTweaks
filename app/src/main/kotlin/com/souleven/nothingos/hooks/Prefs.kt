@@ -285,6 +285,11 @@ class Prefs(private val isSystemServer: Boolean = false) {
 
     fun getBoolean(key: String, default: Boolean): Boolean {
         maybeReload()
+        return getBooleanCached(key, default)
+    }
+
+    /** Reads the current preference cache without triggering or waiting for a reload. */
+    fun getBooleanCached(key: String, default: Boolean): Boolean {
         return when (val v = cache[key]) {
             is Boolean -> v
             is String -> v.toBooleanStrictOrNull() ?: default

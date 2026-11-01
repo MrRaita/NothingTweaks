@@ -41,6 +41,13 @@
             app:useSimpleSummaryProvider="false" />
 
         <SwitchPreferenceCompat
+            app:key="pref_hide_silent_icon"
+            app:title="@string/pref_hide_silent_icon_title"
+            app:summary="@string/pref_hide_silent_icon_summary"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
             app:key="force_earphone_icon"
             app:title="@string/pref_force_earphone_icon"
             app:summary="@string/pref_force_earphone_icon_desc"
