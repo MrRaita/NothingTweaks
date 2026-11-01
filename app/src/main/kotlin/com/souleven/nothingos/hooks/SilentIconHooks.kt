@@ -8,12 +8,16 @@ import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.callbacks.XC_LoadPackage
 import java.util.WeakHashMap
 
-/** Hides only the status-bar volume/ringer icon. */
+/** Hides only the mute (silent-ringer) status-bar icon. */
 class SilentIconHooks : HookModule {
     companion object {
         private const val PREF_KEY = "pref_hide_silent_icon"
         private const val POLICY_CLASS =
             "com.android.systemui.statusbar.phone.PhoneStatusBarPolicy"
+        private const val UPDATE_METHOD = "updateRingerAndAlarmIcons"
+        private const val ICON_CONTROLLER_FIELD = "mIconController"
+        private const val MUTE_SLOT_FIELD = "mSlotMute"
+        private const val MUTE_VISIBLE_FIELD = "mMuteVisible"
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -26,17 +30,31 @@ class SilentIconHooks : HookModule {
             return
         }
 
+        val methodCount = policyClass.declaredMethods.count { it.name == UPDATE_METHOD }
+        if (methodCount == 0) {
+            XposedBridge.log("NothingTweaks: [SilentIcon] $UPDATE_METHOD not found in $POLICY_CLASS")
+            return
+        }
+
         try {
-            XposedBridge.hookAllMethods(policyClass, "updateVolumeZen", object : XC_MethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
-                    val policy = param.thisObject ?: return
-                    synchronized(policies) { policies[policy] = true }
-                    applyVisibility(policy, prefs)
+            val hooks = XposedBridge.hookAllMethods(
+                policyClass,
+                UPDATE_METHOD,
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        val policy = param.thisObject ?: return
+                        synchronized(policies) { policies[policy] = true }
+                        applyVisibility(policy, prefs)
+                    }
                 }
-            })
+            )
+            XposedBridge.log(
+                "NothingTweaks: [SilentIcon] Hooked $POLICY_CLASS#$UPDATE_METHOD (${hooks.size} overload(s))"
+            )
         } catch (t: Throwable) {
-            XposedBridge.log("NothingTweaks: [SilentIcon] Failed to hook updateVolumeZen: ${t.message}")
+            XposedBridge.log("NothingTweaks: [SilentIcon] Failed to hook $UPDATE_METHOD: ${t.message}")
             XposedBridge.log(t)
+            return
         }
 
         prefs.addListener {
@@ -48,13 +66,17 @@ class SilentIconHooks : HookModule {
     }
 
     private fun applyVisibility(policy: Any, prefs: Prefs) {
-        if (!prefs.getBoolean(PREF_KEY, false)) return
         try {
-            val iconController = XposedHelpers.getObjectField(policy, "mIconController") ?: return
-            // Android's status-bar icon slot for the ringer/volume indicator is "volume".
-            XposedHelpers.callMethod(iconController, "setIconVisibility", "volume", false)
+            val iconController = XposedHelpers.getObjectField(policy, ICON_CONTROLLER_FIELD)
+                ?: throw IllegalStateException("$ICON_CONTROLLER_FIELD is null")
+            val muteSlot = XposedHelpers.getObjectField(policy, MUTE_SLOT_FIELD) as? String
+                ?: throw IllegalStateException("$MUTE_SLOT_FIELD is null or not a String")
+            val muteVisible = XposedHelpers.getBooleanField(policy, MUTE_VISIBLE_FIELD)
+            val visible = muteVisible && !prefs.getBoolean(PREF_KEY, false)
+
+            XposedHelpers.callMethod(iconController, "setIconVisibility", muteSlot, visible)
         } catch (t: Throwable) {
-            XposedBridge.log("NothingTweaks: [SilentIcon] Failed to hide volume icon: ${t.message}")
+            XposedBridge.log("NothingTweaks: [SilentIcon] Failed to update mute icon visibility: ${t.message}")
             XposedBridge.log(t)
         }
     }
