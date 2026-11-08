@@ -200,4 +200,19 @@
     <string name="hide_icon_sim2">SIM 2 indicator</string>
     <string name="hide_icon_dual_sim">Dual SIM indicator</string>
     <string name="hide_icon_alarm">Alarm</string>
+
+    <!-- Essential key -->
+    <string name="cat_essential_key">Essential key</string>
+    <string name="pref_essential_single_title">Single press</string>
+    <string name="pref_essential_double_title">Double press</string>
+    <string name="pref_essential_triple_title">Triple press</string>
+    <string name="pref_essential_long_title">Long press</string>
+    <string name="pref_essential_triple_note">Triple press is detected by the module itself. Without a custom action here, the system treats it as a double press.</string>
+    <string name="pref_essential_app_title">Application</string>
+    <string name="pref_essential_app_summary">Tap to select an application</string>
+    <string name="essential_action_default">System default</string>
+    <string name="essential_action_none">Do nothing</string>
+    <string name="essential_action_flashlight">Toggle flashlight</string>
+    <string name="essential_action_ringer">Cycle sound mode</string>
+    <string name="essential_action_app">Open app</string>
 </resources>

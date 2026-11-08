@@ -394,6 +394,81 @@
             app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
+    <PreferenceCategory
+        app:title="@string/cat_essential_key"
+        app:iconSpaceReserved="false">
+
+        <ListPreference
+            app:key="pref_essential_single_action"
+            app:title="@string/pref_essential_single_title"
+            app:dialogTitle="@string/pref_essential_single_title"
+            app:entries="@array/essential_action_entries"
+            app:entryValues="@array/essential_action_values"
+            app:defaultValue="default"
+            app:useSimpleSummaryProvider="true"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="pref_essential_single_app"
+            app:title="@string/pref_essential_app_title"
+            app:summary="@string/pref_essential_app_summary"
+            app:iconSpaceReserved="false" />
+
+        <ListPreference
+            app:key="pref_essential_double_action"
+            app:title="@string/pref_essential_double_title"
+            app:dialogTitle="@string/pref_essential_double_title"
+            app:entries="@array/essential_action_entries"
+            app:entryValues="@array/essential_action_values"
+            app:defaultValue="default"
+            app:useSimpleSummaryProvider="true"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="pref_essential_double_app"
+            app:title="@string/pref_essential_app_title"
+            app:summary="@string/pref_essential_app_summary"
+            app:iconSpaceReserved="false" />
+
+        <ListPreference
+            app:key="pref_essential_triple_action"
+            app:title="@string/pref_essential_triple_title"
+            app:dialogTitle="@string/pref_essential_triple_title"
+            app:entries="@array/essential_action_entries"
+            app:entryValues="@array/essential_action_values"
+            app:defaultValue="default"
+            app:useSimpleSummaryProvider="true"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="pref_essential_triple_app"
+            app:title="@string/pref_essential_app_title"
+            app:summary="@string/pref_essential_app_summary"
+            app:iconSpaceReserved="false" />
+
+        <ListPreference
+            app:key="pref_essential_long_action"
+            app:title="@string/pref_essential_long_title"
+            app:dialogTitle="@string/pref_essential_long_title"
+            app:entries="@array/essential_action_entries"
+            app:entryValues="@array/essential_action_values"
+            app:defaultValue="default"
+            app:useSimpleSummaryProvider="true"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="pref_essential_long_app"
+            app:title="@string/pref_essential_app_title"
+            app:summary="@string/pref_essential_app_summary"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="pref_essential_triple_note"
+            app:summary="@string/pref_essential_triple_note"
+            app:selectable="false"
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
     <!-- 10. Battery & Charging -->
     <PreferenceCategory
         app:title="@string/cat_battery"

@@ -199,4 +199,19 @@
     <string name="hide_icon_sim1">SIM 1 göstergesi</string>
     <string name="hide_icon_sim2">SIM 2 göstergesi</string>
     <string name="hide_icon_alarm">Alarm</string>
+
+    <!-- Essential key -->
+    <string name="cat_essential_key">Essential tuşu</string>
+    <string name="pref_essential_single_title">Tek basış</string>
+    <string name="pref_essential_double_title">Çift basış</string>
+    <string name="pref_essential_triple_title">Üç kez basış</string>
+    <string name="pref_essential_long_title">Uzun basış</string>
+    <string name="pref_essential_triple_note">Üç kez basış modül tarafından algılanır. Burada özel bir eylem atanmazsa sistem bunu çift basış olarak görür.</string>
+    <string name="pref_essential_app_title">Uygulama</string>
+    <string name="pref_essential_app_summary">Bir uygulama seçmek için dokunun</string>
+    <string name="essential_action_default">Sistem varsayılanı</string>
+    <string name="essential_action_none">Hiçbir şey yapma</string>
+    <string name="essential_action_flashlight">Feneri aç/kapat</string>
+    <string name="essential_action_ringer">Ses modunu değiştir</string>
+    <string name="essential_action_app">Uygulama aç</string>
 </resources>
