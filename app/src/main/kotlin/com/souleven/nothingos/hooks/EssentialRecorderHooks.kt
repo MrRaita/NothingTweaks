@@ -8,7 +8,7 @@ import android.net.Uri
 import android.provider.Settings
 import android.util.Log
 import com.souleven.nothingos.MainHook.Companion.TAG
-import de.robv.android.xposed.AndroidAppHelper
+import android.app.AndroidAppHelper
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
