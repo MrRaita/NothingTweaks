@@ -223,4 +223,12 @@
     <string name="pref_essential_ai_note">These switches work on their own, without assigning anything to a gesture. Other key functions (for example the single press capture) can be turned off by setting that gesture to “Do nothing” above.</string>
     <string name="pref_essential_debug_log_title">Detailed key log</string>
     <string name="pref_essential_debug_log_summary">Writes every Essential key event, decision, action and vibration to logcat (search for “EssentialKey”).</string>
+    <string name="cat_essential_space">Essential key · Essential Space</string>
+    <string name="pref_essential_block_capture_title">Disable screenshot capture</string>
+    <string name="pref_essential_block_capture_summary">A press (or hold) no longer takes a screenshot when nothing is open. While the capture bar is open, a press still saves it.</string>
+    <string name="pref_essential_block_record_title">Disable voice recording on hold</string>
+    <string name="pref_essential_block_record_summary">Holding the key no longer records audio. With the capture bar open, a hold just saves the screenshot.</string>
+    <string name="pref_essential_block_space_title">Disable opening Essential Space on double press</string>
+    <string name="pref_essential_block_space_summary">A double press does nothing instead of opening Essential Space.</string>
+    <string name="pref_essential_space_note">These switches need Essential Recorder (com.nothing.ntessentialrecorder) in the LSPosed scope of this module, because they follow the state of its capture bar.</string>
 </resources>

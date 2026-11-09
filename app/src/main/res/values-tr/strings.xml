@@ -222,4 +222,12 @@
     <string name="pref_essential_ai_note">Bu anahtarlar bir harekete eylem atamadan tek başına çalışır. Diğer tuş işlevleri (örneğin tek basışla yakalama) yukarıda o hareketi “Hiçbir şey yapma” yaparak kapatılabilir.</string>
     <string name="pref_essential_debug_log_title">Ayrıntılı tuş günlüğü</string>
     <string name="pref_essential_debug_log_summary">Her Essential tuşu olayını, kararı, eylemi ve titreşimi logcat\'e yazar (“EssentialKey” ile arayın).</string>
+    <string name="cat_essential_space">Essential tuşu · Essential Space</string>
+    <string name="pref_essential_block_capture_title">Ekran görüntüsü almayı kapat</string>
+    <string name="pref_essential_block_capture_summary">Hiçbir şey açık değilken basış (ya da basılı tutma) artık ekran görüntüsü almaz. Yakalama çubuğu açıkken basış yine kaydeder.</string>
+    <string name="pref_essential_block_record_title">Basılı tutunca ses kaydını kapat</string>
+    <string name="pref_essential_block_record_summary">Tuşu basılı tutmak artık ses kaydetmez. Yakalama çubuğu açıkken basılı tutmak sadece ekran görüntüsünü kaydeder.</string>
+    <string name="pref_essential_block_space_title">Çift basışta Essential Space\'i açmayı kapat</string>
+    <string name="pref_essential_block_space_summary">Çift basış, Essential Space\'i açmak yerine hiçbir şey yapmaz.</string>
+    <string name="pref_essential_space_note">Bu anahtarlar yakalama çubuğunun durumunu izlediği için Essential Recorder (com.nothing.ntessentialrecorder) bu modülün LSPosed kapsamında olmalıdır.</string>
 </resources>

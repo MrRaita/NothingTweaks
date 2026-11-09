@@ -48,6 +48,9 @@ class EssentialKeyHooks : HookModule {
         const val ACTION_RINGER = "ringer"
         const val ACTION_APP = "app"
 
+        /** Internal only (never stored): replay the press as a quick click to Nothing's pipeline. */
+        private const val ACTION_CLICK = "click"
+
         val GESTURES = listOf("single", "double", "triple", "long")
 
         const val ACTION_LAUNCH_APP = "com.souleven.nothingos.action.ESSENTIAL_LAUNCH_APP"
@@ -56,6 +59,17 @@ class EssentialKeyHooks : HookModule {
         const val KEY_BLOCK_VOICE_HOLD = "pref_essential_block_voice_hold"
         const val KEY_BLOCK_VOICE_DOUBLE = "pref_essential_block_voice_double"
         const val KEY_DEBUG_LOG = "pref_essential_debug_log"
+
+        // Essential Space / Recorder functions, switched off per function (they need the Recorder state, see below)
+        const val KEY_BLOCK_CAPTURE = "pref_essential_block_capture"
+        const val KEY_BLOCK_VOICE_RECORD = "pref_essential_block_voice_record"
+        const val KEY_BLOCK_OPEN_SPACE = "pref_essential_block_open_space"
+
+        /**
+         * Settings.Secure key that carries the state of Essential Recorder's capture flow
+         * (written by EssentialRecorderHooks, read here). Values are the Recorder's own state names.
+         */
+        const val KEY_ES_STATE = "nt_tweaks_es_state"
 
         fun keyAction(gesture: String) = "pref_essential_${gesture}_action"
         fun keyApp(gesture: String) = "pref_essential_${gesture}_app"
@@ -92,7 +106,7 @@ class EssentialKeyHooks : HookModule {
         private const val TRIGGER_LONG_CLICK = 1
         private const val TRIGGER_DOUBLE_CLICK = 2
 
-        private const val LONG_PRESS_MS = 400L
+        private const val LONG_PRESS_MS = 500L // Essential Recorder fires onLongClick ~505-520 ms after DOWN
         private const val MULTI_PRESS_WINDOW_MS = 300L
         private const val MAX_PRESSES = 3
         private const val VIB_LOG_WINDOW_MS = 3000L
@@ -120,6 +134,11 @@ class EssentialKeyHooks : HookModule {
     private var longReplayedDown = false
     private var sequenceStart = 0L
     private var lastUpUptime = 0L
+    private var seqPolicy: Map<String, String> = emptyMap()
+    private var stateInitDone = false
+
+    /** Policy computed at the DOWN of the current press, handed to the handler thread. */
+    @Volatile private var latestPolicy: Map<String, String> = emptyMap()
 
     // --- shared ---
     @Volatile private var origMethod: Member? = null
@@ -298,7 +317,10 @@ class EssentialKeyHooks : HookModule {
         if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0) return
         val copy = KeyEvent(event)
         when (event.action) {
-            KeyEvent.ACTION_DOWN -> handler.post { onDown(copy) }
+            KeyEvent.ACTION_DOWN -> {
+                val policy = latestPolicy
+                handler.post { onDown(copy, policy) }
+            }
             KeyEvent.ACTION_UP -> handler.post { onUp(copy) }
         }
     }
@@ -306,10 +328,13 @@ class EssentialKeyHooks : HookModule {
     /** Decides once per press whether we take ownership. UP follows the decision of its DOWN. Returns the reason. */
     private fun decidePress(): String {
         pendingActivation = false
-        val custom = GESTURES.filter { prefs.getString(keyAction(it), ACTION_DEFAULT) != ACTION_DEFAULT }
-        if (custom.isEmpty()) {
+        val state = if (needsEssentialState()) esState() else "n/a"
+        val policy = GESTURES.associateWith { effectiveAction(it, state) }
+        latestPolicy = policy
+        val changed = policy.filterValues { it != ACTION_DEFAULT }
+        if (changed.isEmpty()) {
             ownedPress = false
-            return "all-default"
+            return "all-default (state=$state)"
         }
         if (voiceActive()) {
             ownedPress = false
@@ -321,7 +346,54 @@ class EssentialKeyHooks : HookModule {
             return guard
         }
         ownedPress = true
-        return "custom=$custom"
+        return "state=$state policy=$changed"
+    }
+
+    private fun needsEssentialState() =
+        prefs.getBoolean(KEY_BLOCK_CAPTURE, false) || prefs.getBoolean(KEY_BLOCK_VOICE_RECORD, false)
+
+    /**
+     * What should happen for [gesture] given the Recorder [state]?
+     * A custom action wins; otherwise the per-function switches decide; otherwise the system default.
+     * Recorder behaviour (from its own logs): in IDLE a press takes a screenshot immediately (even before the
+     * gesture is known), a hold adds a voice recording; in FOCUS (capture bar open) a click saves, a hold
+     * records a voice note and saves on release.
+     */
+    private fun effectiveAction(gesture: String, state: String): String {
+        val custom = prefs.getString(keyAction(gesture), ACTION_DEFAULT)
+        if (custom != ACTION_DEFAULT) return custom
+        val idle = state == "IDLE"
+        val focus = state == "FOCUS" || state == "FOCUS_SHARE"
+        val blockCapture = prefs.getBoolean(KEY_BLOCK_CAPTURE, false)
+        val blockRecord = prefs.getBoolean(KEY_BLOCK_VOICE_RECORD, false)
+        val blockSpace = prefs.getBoolean(KEY_BLOCK_OPEN_SPACE, false)
+        return when (gesture) {
+            "single" -> if (blockCapture && idle) ACTION_NONE else ACTION_DEFAULT
+            "double" -> if (blockSpace) ACTION_NONE else ACTION_DEFAULT
+            "long" -> when {
+                blockRecord -> if (focus) ACTION_CLICK else ACTION_NONE // in the capture bar: just save, no voice note
+                blockCapture && idle -> ACTION_NONE // a hold in IDLE would take the screenshot too
+                else -> ACTION_DEFAULT
+            }
+            else -> ACTION_DEFAULT
+        }
+    }
+
+    /** Recorder capture-flow state as published by EssentialRecorderHooks (IDLE when unknown). */
+    private fun esState(): String {
+        val ctx = systemContext() ?: return "IDLE"
+        return try {
+            val resolver = ctx.contentResolver
+            if (!stateInitDone) {
+                // a state left over from a previous boot must not survive
+                stateInitDone = true
+                android.provider.Settings.Secure.putString(resolver, KEY_ES_STATE, "IDLE")
+            }
+            android.provider.Settings.Secure.getString(resolver, KEY_ES_STATE) ?: "IDLE"
+        } catch (t: Throwable) {
+            d("err", "esState failed: $t")
+            "IDLE"
+        }
     }
 
     /** Conditions under which NtEssentialKeyImpl would ignore the press; we leave those presses to it. */
@@ -361,7 +433,7 @@ class EssentialKeyHooks : HookModule {
 
     // ---------------------------------------------------------------- handler thread
 
-    private fun onDown(ev: KeyEvent) {
+    private fun onDown(ev: KeyEvent, policy: Map<String, String>) {
         handler.removeCallbacks(windowRunnable)
 
         // stale state (e.g. a cancelled press whose UP never arrived)
@@ -371,7 +443,11 @@ class EssentialKeyHooks : HookModule {
         }
 
         val now = SystemClock.uptimeMillis()
-        if (presses.isEmpty()) sequenceStart = now
+        if (presses.isEmpty()) {
+            sequenceStart = now
+            seqPolicy = policy
+            d("cfg", "sequence policy=${policy.filterValues { it != ACTION_DEFAULT }}")
+        }
         presses.add(Press(ev))
         val gap = if (presses.size > 1) now - lastUpUptime else -1L
         d("cls", "press#${presses.size} DOWN +${now - sequenceStart}ms gapSincePrevUp=${gap}ms")
@@ -411,11 +487,15 @@ class EssentialKeyHooks : HookModule {
         // only the first press of a sequence can become a long press
         if (presses.size != 1 || presses[0].up != null) return
         longFired = true
-        val action = prefs.getString(keyAction("long"), ACTION_DEFAULT)
+        val action = seqPolicy["long"] ?: ACTION_DEFAULT
         d("cls", "LONG detected after ${LONG_PRESS_MS}ms -> $action")
         if (action == ACTION_DEFAULT) {
             longReplayedDown = true
             replay(presses[0].down, 0L, "long-down")
+        } else if (action == ACTION_CLICK) {
+            // keep the hold away from the Recorder (no voice note) and give it a quick click instead
+            longReplayedDown = false
+            replayClick(presses[0].down)
         } else {
             longReplayedDown = false
             execute(action, "long")
@@ -435,7 +515,7 @@ class EssentialKeyHooks : HookModule {
             2 -> "double"
             else -> "triple"
         }
-        val action = prefs.getString(keyAction(gesture), ACTION_DEFAULT)
+        val action = seqPolicy[gesture] ?: ACTION_DEFAULT
         d("cls", "classified $gesture (${snapshot.size} press) -> $action")
         if (action == ACTION_DEFAULT) {
             // give the stock pipeline exactly what it would have seen, with the original gaps
@@ -475,6 +555,13 @@ class EssentialKeyHooks : HookModule {
         }, delayMs)
     }
 
+    /** DOWN now, UP 80 ms later: what a quick tap looks like to Nothing's pipeline. */
+    private fun replayClick(down: KeyEvent) {
+        replay(down, 0L, "click-down")
+        val up = KeyEvent.changeTimeRepeat(KeyEvent.changeAction(down, KeyEvent.ACTION_UP), down.eventTime + 80, 0)
+        replay(up, 80L, "click-up")
+    }
+
     // ---------------------------------------------------------------- actions
 
     private fun systemContext(): Context? {
@@ -503,8 +590,6 @@ class EssentialKeyHooks : HookModule {
                 sendToSystemUi(ctx, Intent(TorchHooks.ACTION_TOGGLE_TORCH).putExtra(TorchHooks.EXTRA_ESSENTIAL, true))
             }
             ACTION_RINGER -> {
-                // no other component vibrates on a ringer change, so this is the single haptic of this action
-                vibrate(ctx, "ringer")
                 cycleRinger(ctx)
             }
             ACTION_APP -> {
@@ -545,6 +630,9 @@ class EssentialKeyHooks : HookModule {
                 AudioManager.RINGER_MODE_VIBRATE -> AudioManager.RINGER_MODE_SILENT
                 else -> AudioManager.RINGER_MODE_NORMAL
             }
+            // SystemUI gives its own haptic when the ringer changes to vibrate (seen in the vibration log);
+            // for the other changes nothing vibrates, so we do it. Result: always exactly one haptic.
+            if (next != AudioManager.RINGER_MODE_VIBRATE) vibrate(ctx, "ringer -> $next")
             var how = "setRingerModeInternal"
             try {
                 XposedHelpers.callMethod(am, "setRingerModeInternal", next)
