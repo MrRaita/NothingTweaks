@@ -214,12 +214,12 @@
     <string name="essential_action_flashlight">Feneri aç/kapat</string>
     <string name="essential_action_ringer">Ses modunu değiştir</string>
     <string name="essential_action_app">Uygulama aç</string>
-    <string name="cat_essential_ai">Essential tuşu · Yapay zekâ özellikleri</string>
-    <string name="pref_essential_block_voice_hold_title">Basılı tutunca Essential Voice\'i kapat</string>
-    <string name="pref_essential_block_voice_hold_summary">Essential tuşunu basılı tutunca başlayan ses yazıya dökme özelliğini kapatır.</string>
+    <string name="cat_essential_ai">Essential tuşu · Essential Voice</string>
+    <string name="pref_essential_block_voice_hold_title">Uzun basışta Essential Voice\'i kapat</string>
+    <string name="pref_essential_block_voice_hold_summary">Tuşu basılı tutunca Essential Voice başlamaz. Nothing ayarlarındaki seçim (Metne Dönüştür veya Çeviri) fark etmez.</string>
     <string name="pref_essential_block_voice_double_title">Çift basışta Essential Voice\'i kapat</string>
-    <string name="pref_essential_block_voice_double_summary">Essential tuşuna çift basınca başlayan ses çevirisi özelliğini kapatır.</string>
-    <string name="pref_essential_block_flip_title">Çevirince kaydı kapat</string>
-    <string name="pref_essential_block_flip_summary">Telefonu çevirdiğinizde Essential Voice\'in kayıt başlatmasını engeller.</string>
-    <string name="pref_essential_ai_note">Bu anahtarlar bir harekete eylem atamadan tek başına çalışır. Diğer tuş işlevleri için (örneğin tek basışla yakalama) yukarıda o hareketi “Hiçbir şey yapma” yapın.</string>
+    <string name="pref_essential_block_voice_double_summary">Tuşa çift basınca Essential Voice başlamaz. Nothing ayarlarındaki seçim (Metne Dönüştür veya Çeviri) fark etmez.</string>
+    <string name="pref_essential_ai_note">Bu anahtarlar bir harekete eylem atamadan tek başına çalışır. Diğer tuş işlevleri (örneğin tek basışla yakalama) yukarıda o hareketi “Hiçbir şey yapma” yaparak kapatılabilir.</string>
+    <string name="pref_essential_debug_log_title">Ayrıntılı tuş günlüğü</string>
+    <string name="pref_essential_debug_log_summary">Her Essential tuşu olayını, kararı, eylemi ve titreşimi logcat\'e yazar (“EssentialKey” ile arayın).</string>
 </resources>

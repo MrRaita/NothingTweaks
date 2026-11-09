@@ -215,12 +215,12 @@
     <string name="essential_action_flashlight">Toggle flashlight</string>
     <string name="essential_action_ringer">Cycle sound mode</string>
     <string name="essential_action_app">Open app</string>
-    <string name="cat_essential_ai">Essential key · AI features</string>
-    <string name="pref_essential_block_voice_hold_title">Disable Essential Voice on press and hold</string>
-    <string name="pref_essential_block_voice_hold_summary">Turns off the voice transcription that starts when you hold the Essential key.</string>
+    <string name="cat_essential_ai">Essential key · Essential Voice</string>
+    <string name="pref_essential_block_voice_hold_title">Disable Essential Voice on long press</string>
+    <string name="pref_essential_block_voice_hold_summary">Essential Voice will not start when you press and hold the key, whatever action is chosen in Nothing’s own settings (Transcribe or Translate).</string>
     <string name="pref_essential_block_voice_double_title">Disable Essential Voice on double press</string>
-    <string name="pref_essential_block_voice_double_summary">Turns off the voice translation that starts when you double press the Essential key.</string>
-    <string name="pref_essential_block_flip_title">Disable Flip to record</string>
-    <string name="pref_essential_block_flip_summary">Stops Essential Voice from starting a recording when you flip the phone.</string>
-    <string name="pref_essential_ai_note">These switches work on their own, without assigning anything to a gesture. For other key functions (for example the single press capture) set that gesture to “Do nothing” above.</string>
+    <string name="pref_essential_block_voice_double_summary">Essential Voice will not start when you double press the key, whatever action is chosen in Nothing’s own settings (Transcribe or Translate).</string>
+    <string name="pref_essential_ai_note">These switches work on their own, without assigning anything to a gesture. Other key functions (for example the single press capture) can be turned off by setting that gesture to “Do nothing” above.</string>
+    <string name="pref_essential_debug_log_title">Detailed key log</string>
+    <string name="pref_essential_debug_log_summary">Writes every Essential key event, decision, action and vibration to logcat (search for “EssentialKey”).</string>
 </resources>

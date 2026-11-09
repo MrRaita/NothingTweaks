@@ -29,6 +29,7 @@ class TorchHooks : HookModule {
 
         @Volatile
         private var sFlashlightController: Any? = null
+        @Volatile private var sLogPrefs: Prefs? = null
 
         @Volatile
         private var sContext: Context? = null
@@ -182,10 +183,19 @@ class TorchHooks : HookModule {
                         prefs.forceReload()
                         val fromEssentialKey = intent?.getBooleanExtra(EXTRA_ESSENTIAL, false) == true &&
                             EssentialKeyHooks.anyGestureUses(prefs, EssentialKeyHooks.ACTION_FLASHLIGHT)
+                        sLogPrefs = prefs
+                        EssentialKeyHooks.log(
+                            prefs, "su",
+                            "torch broadcast received receiver=${System.identityHashCode(this)} essential=$fromEssentialKey " +
+                                "volumeChordPref=${prefs.getBoolean(PREF_KEY, false)}"
+                        )
                         if (!fromEssentialKey && !prefs.getBoolean(PREF_KEY, false)) return
 
                         val targetContext = c ?: sContext ?: AndroidAppHelper.currentApplication() ?: return
                         val now = SystemClock.uptimeMillis()
+                        if (!fromEssentialKey && now - lastToggleTime <= DEBOUNCE_MS) {
+                            EssentialKeyHooks.log(prefs, "su", "torch toggle dropped by ${DEBOUNCE_MS}ms debounce")
+                        }
                         if (fromEssentialKey || now - lastToggleTime > DEBOUNCE_MS) {
                             lastToggleTime = now
                             volUpPressTime = 0L
@@ -277,6 +287,7 @@ class TorchHooks : HookModule {
     }
 
     private fun vibrate(context: Context) {
+        EssentialKeyHooks.log(sLogPrefs, "su", "torch haptic 50ms one-shot (TorchHooks)")
         try {
             val vibrator = context.getSystemService(Vibrator::class.java) ?: return
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
