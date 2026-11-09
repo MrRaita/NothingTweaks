@@ -469,6 +469,38 @@
             app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
+    <PreferenceCategory
+        app:title="@string/cat_essential_ai"
+        app:iconSpaceReserved="false">
+
+        <SwitchPreferenceCompat
+            app:key="pref_essential_block_voice_hold"
+            app:title="@string/pref_essential_block_voice_hold_title"
+            app:summary="@string/pref_essential_block_voice_hold_summary"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            app:key="pref_essential_block_voice_double"
+            app:title="@string/pref_essential_block_voice_double_title"
+            app:summary="@string/pref_essential_block_voice_double_summary"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            app:key="pref_essential_block_flip_to_record"
+            app:title="@string/pref_essential_block_flip_title"
+            app:summary="@string/pref_essential_block_flip_summary"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="pref_essential_ai_note"
+            app:summary="@string/pref_essential_ai_note"
+            app:selectable="false"
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
     <!-- 10. Battery & Charging -->
     <PreferenceCategory
         app:title="@string/cat_battery"

@@ -215,4 +215,12 @@
     <string name="essential_action_flashlight">Toggle flashlight</string>
     <string name="essential_action_ringer">Cycle sound mode</string>
     <string name="essential_action_app">Open app</string>
+    <string name="cat_essential_ai">Essential key · AI features</string>
+    <string name="pref_essential_block_voice_hold_title">Disable Essential Voice on press and hold</string>
+    <string name="pref_essential_block_voice_hold_summary">Turns off the voice transcription that starts when you hold the Essential key.</string>
+    <string name="pref_essential_block_voice_double_title">Disable Essential Voice on double press</string>
+    <string name="pref_essential_block_voice_double_summary">Turns off the voice translation that starts when you double press the Essential key.</string>
+    <string name="pref_essential_block_flip_title">Disable Flip to record</string>
+    <string name="pref_essential_block_flip_summary">Stops Essential Voice from starting a recording when you flip the phone.</string>
+    <string name="pref_essential_ai_note">These switches work on their own, without assigning anything to a gesture. For other key functions (for example the single press capture) set that gesture to “Do nothing” above.</string>
 </resources>

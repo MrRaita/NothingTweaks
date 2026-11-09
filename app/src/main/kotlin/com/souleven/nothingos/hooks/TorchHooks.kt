@@ -186,7 +186,7 @@ class TorchHooks : HookModule {
 
                         val targetContext = c ?: sContext ?: AndroidAppHelper.currentApplication() ?: return
                         val now = SystemClock.uptimeMillis()
-                        if (now - lastToggleTime > DEBOUNCE_MS) {
+                        if (fromEssentialKey || now - lastToggleTime > DEBOUNCE_MS) {
                             lastToggleTime = now
                             volUpPressTime = 0L
                             volDownPressTime = 0L

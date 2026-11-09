@@ -56,6 +56,19 @@ class EssentialKeyHooks : HookModule {
                     prefs.getString(keyApp(it), "") == pkg
             }
 
+        // Independent switches that turn off Nothing's own Essential key AI features
+        // (they work without assigning anything to a gesture).
+        const val KEY_BLOCK_VOICE_HOLD = "pref_essential_block_voice_hold"
+        const val KEY_BLOCK_VOICE_DOUBLE = "pref_essential_block_voice_double"
+        const val KEY_BLOCK_FLIP_TO_RECORD = "pref_essential_block_flip_to_record"
+
+        // Settings.Secure keys read by NtEssentialKeyImpl (verified in nt-services.jar).
+        // Values of NtEssentialVoiceImpl$TriggerAction: 0 = TRANSCRIBE, 1 = TRANSLATE, 2 = NO_ACTION
+        private const val SETTING_VOICE_HOLD = "nt_essential_voice_action_hold"
+        private const val SETTING_VOICE_DOUBLE = "nt_essential_voice_action_double_click"
+        private const val SETTING_FLIP_TO_RECORD = "nt_flip_to_record_state"
+        private const val VOICE_NO_ACTION = 2
+
         private const val IMPL_CLASS = "com.android.server.wm.NtEssentialKeyImpl"
         private const val LONG_PRESS_MS = 400L
         private const val MULTI_PRESS_WINDOW_MS = 300L
@@ -90,6 +103,8 @@ class EssentialKeyHooks : HookModule {
         this.prefs = prefs
         this.classLoader = lpparam.classLoader
 
+        hookAiFunctionSwitches(lpparam.classLoader)
+
         val cls = findImplClass(lpparam.classLoader)
         if (cls == null) {
             XposedBridge.log("$TAG [EssentialKey] $IMPL_CLASS not found, feature disabled")
@@ -122,6 +137,64 @@ class EssentialKeyHooks : HookModule {
             } catch (_: Throwable) {}
         }
         return null
+    }
+
+    // ---------------------------------------------------------------- AI function switches
+
+    private var lastAiState = Triple(false, false, false)
+
+    /**
+     * Makes NtEssentialKeyImpl read "no action" / "off" for the selected Essential Voice features.
+     * Nothing's own settings stay untouched (nothing is written), the impl simply sees a different value.
+     * It observes these settings, so a notifyChange makes the change effective immediately.
+     */
+    private fun hookAiFunctionSwitches(cl: ClassLoader) {
+        val secure = XposedHelpers.findClassIfExists("android.provider.Settings\$Secure", cl) ?: return
+        try {
+            XposedBridge.hookAllMethods(secure, "getIntForUser", object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    val name = param.args.getOrNull(1) as? String ?: return
+                    when (name) {
+                        SETTING_VOICE_HOLD ->
+                            if (prefs.getBoolean(KEY_BLOCK_VOICE_HOLD, false)) param.result = VOICE_NO_ACTION
+                        SETTING_VOICE_DOUBLE ->
+                            if (prefs.getBoolean(KEY_BLOCK_VOICE_DOUBLE, false)) param.result = VOICE_NO_ACTION
+                        SETTING_FLIP_TO_RECORD ->
+                            if (prefs.getBoolean(KEY_BLOCK_FLIP_TO_RECORD, false)) param.result = 0
+                    }
+                }
+            })
+            XposedBridge.log("$TAG [EssentialKey] Hooked Settings.Secure#getIntForUser for AI switches")
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG [EssentialKey] AI switch hook failed: ${t.message}")
+            return
+        }
+
+        // re-read the settings inside NtEssentialKeyImpl whenever one of our switches changes
+        prefs.addListener {
+            val now = Triple(
+                prefs.getBoolean(KEY_BLOCK_VOICE_HOLD, false),
+                prefs.getBoolean(KEY_BLOCK_VOICE_DOUBLE, false),
+                prefs.getBoolean(KEY_BLOCK_FLIP_TO_RECORD, false)
+            )
+            handler.post {
+                val prev = lastAiState
+                if (now == prev) return@post
+                lastAiState = now
+                val ctx = systemContext() ?: return@post
+                try {
+                    val resolver = ctx.contentResolver
+                    fun poke(changed: Boolean, key: String) {
+                        if (changed) resolver.notifyChange(android.provider.Settings.Secure.getUriFor(key), null)
+                    }
+                    poke(now.first != prev.first, SETTING_VOICE_HOLD)
+                    poke(now.second != prev.second, SETTING_VOICE_DOUBLE)
+                    poke(now.third != prev.third, SETTING_FLIP_TO_RECORD)
+                } catch (t: Throwable) {
+                    XposedBridge.log("$TAG [EssentialKey] notifyChange failed: ${t.message}")
+                }
+            }
+        }
     }
 
     // ---------------------------------------------------------------- hook thread
@@ -210,6 +283,7 @@ class EssentialKeyHooks : HookModule {
             else -> "triple"
         }
         val action = prefs.getString(keyAction(gesture), ACTION_DEFAULT)
+        XposedBridge.log("$TAG [EssentialKey] classified $gesture (${snapshot.size} press) -> $action")
         if (action == ACTION_DEFAULT) {
             // give the stock pipeline exactly what it would have seen, with the original gaps
             val base = snapshot[0].down.eventTime

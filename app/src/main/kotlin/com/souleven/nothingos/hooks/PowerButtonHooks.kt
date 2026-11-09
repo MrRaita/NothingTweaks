@@ -23,8 +23,10 @@ class PowerButtonHooks : HookModule {
         const val KEY_CUSTOM_APP = "pref_power_double_tap_custom_app"
         const val KEY_APP = "pref_power_double_tap_app"
         private const val DEBOUNCE_MS = 600L
+        private const val ESSENTIAL_DEBOUNCE_MS = 250L
 
         private var lastTriggerTime = 0L
+        private var lastEssentialLaunch = 0L
 
         @Volatile
         private var essentialReceiverRegistered = false
@@ -291,8 +293,8 @@ class PowerButtonHooks : HookModule {
                                 // only launch what the user assigned to an Essential key gesture
                                 if (!EssentialKeyHooks.isAppAssigned(prefs, pkg)) return
                                 val now = SystemClock.uptimeMillis()
-                                if (now - lastTriggerTime < DEBOUNCE_MS) return
-                                lastTriggerTime = now
+                                if (now - lastEssentialLaunch < ESSENTIAL_DEBOUNCE_MS) return
+                                lastEssentialLaunch = now
                                 Handler(Looper.getMainLooper()).post {
                                     launchAppFromSystemUI(app, pkg, classLoader)
                                 }
