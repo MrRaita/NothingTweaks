@@ -214,12 +214,6 @@
     <string name="essential_action_flashlight">Feneri aç/kapat</string>
     <string name="essential_action_ringer">Ses modunu değiştir</string>
     <string name="essential_action_app">Uygulama aç</string>
-    <string name="cat_essential_ai">Essential tuşu · Essential Voice</string>
-    <string name="pref_essential_block_voice_hold_title">Uzun basışta Essential Voice\'i kapat</string>
-    <string name="pref_essential_block_voice_hold_summary">Tuşu basılı tutunca Essential Voice başlamaz. Nothing ayarlarındaki seçim (Metne Dönüştür veya Çeviri) fark etmez.</string>
-    <string name="pref_essential_block_voice_double_title">Çift basışta Essential Voice\'i kapat</string>
-    <string name="pref_essential_block_voice_double_summary">Tuşa çift basınca Essential Voice başlamaz. Nothing ayarlarındaki seçim (Metne Dönüştür veya Çeviri) fark etmez.</string>
-    <string name="pref_essential_ai_note">Bu anahtarlar bir harekete eylem atamadan tek başına çalışır. Diğer tuş işlevleri (örneğin tek basışla yakalama) yukarıda o hareketi “Hiçbir şey yapma” yaparak kapatılabilir.</string>
     <string name="pref_essential_debug_log_title">Ayrıntılı tuş günlüğü</string>
     <string name="pref_essential_debug_log_summary">Her Essential tuşu olayını, kararı, eylemi ve titreşimi logcat\'e yazar (“EssentialKey” ile arayın).</string>
     <string name="cat_essential_space">Essential tuşu · Essential Space</string>
@@ -230,4 +224,13 @@
     <string name="pref_essential_block_space_title">Çift basışta Essential Space\'i açmayı kapat</string>
     <string name="pref_essential_block_space_summary">Çift basış, Essential Space\'i açmak yerine hiçbir şey yapmaz.</string>
     <string name="pref_essential_space_note">Bu anahtarlar yakalama çubuğunun durumunu izlediği için Essential Recorder (com.nothing.ntessentialrecorder) bu modülün LSPosed kapsamında olmalıdır.</string>
+    <string name="cat_essential_ai">Essential tuşu · Essential Voice</string>
+    <string name="pref_essential_block_voice_hold_title">Uzun basışta sesle yazmayı kapat</string>
+    <string name="pref_essential_block_voice_hold_summary">Klavye açıkken tuşu basılı tutmak artık Essential Voice\'i (kayıt ve sesten metne) başlatmaz. Nothing ayarlarındaki Metne Dönüştür/Çeviri seçimi fark etmez.</string>
+    <string name="pref_essential_block_voice_double_title">Çift basışta sesle yazmayı kapat</string>
+    <string name="pref_essential_block_voice_double_summary">Klavye açıkken çift basış artık Essential Voice\'i başlatmaz. Nothing ayarlarındaki Metne Dönüştür/Çeviri seçimi fark etmez.</string>
+    <string name="pref_essential_ai_note">Bu anahtarlar bir harekete eylem atamadan tek başına çalışır. Sadece Essential Voice\'i (metin alanına sesle yazma) etkiler; ekran görüntüsü ve sesli not işlevleri Essential Space bölümündedir.</string>
+    <string name="pref_essential_share_title">Basılı tutunca ekran görüntüsünü uygulamaya gönder</string>
+    <string name="pref_essential_share_summary">Yakalama çubuğu açıkken tuşu basılı tutmak, sesli not kaydetmek yerine ekran görüntüsünü seçilen uygulamaya (örneğin bir çeviri uygulamasına) gönderir.</string>
+    <string name="pref_essential_share_app_title">Hedef uygulama</string>
 </resources>

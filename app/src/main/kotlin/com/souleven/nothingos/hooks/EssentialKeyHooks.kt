@@ -1,6 +1,7 @@
 package com.souleven.nothingos.hooks
 
 import android.app.KeyguardManager
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
@@ -12,6 +13,7 @@ import android.os.UserHandle
 import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.provider.Settings
 import android.view.KeyEvent
 import com.souleven.nothingos.MainHook.Companion.TAG
 import de.robv.android.xposed.XC_MethodHook
@@ -21,23 +23,31 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam
 import java.lang.reflect.Member
 
 /**
- * Remaps the Nothing "Essential key" (scan code 250) per gesture: single / double / triple / long press,
- * and can switch off Essential Voice per gesture.
+ * Essential key (Nothing Phone, scan code 250): per-gesture actions and per-function switches.
+ * Runs in system_server.
  *
- * How it works (verified against Nothing OS 4.1 / Android 16 bytecode):
- *   PhoneWindowManager.handleKeyGesture -> NtEssentialKeyImpl.onRecord(KeyEvent)   (nt-services.jar, system_server)
- *   onRecord forwards raw DOWN/UP to Essential Recorder (MainService2) and itself classifies hold / double click
- *   to start Essential Voice through NtEssentialVoiceImpl.startVoiceInput(boolean, boolean, triggerType).
+ * How the stock key works (verified against Nothing OS 4.1 / Android 16 bytecode and device logs):
+ *   PhoneWindowManager.handleKeyGesture -> NtEssentialKeyImpl.onRecord(KeyEvent)   (nt-services.jar)
+ *   onRecord forwards the raw DOWN/UP events to Essential Recorder (MainService2). The Recorder classifies the
+ *   gesture itself (onClick ~300 ms after UP, onLongClick ~510 ms after DOWN, onDoubleClick on the second DOWN)
+ *   and drives the capture flow: in IDLE a DOWN takes a screenshot immediately, a hold adds a voice recording,
+ *   in FOCUS (capture bar open) a click saves and a hold records a voice note, a double press opens Essential Space.
  *
- * 1. Gesture remap: we hook onRecord and classify the gesture ourselves. A gesture with a custom action is
- *    swallowed completely, so the system function bound to it never runs (= "auto disable"). Gestures left on
- *    "System default" are replayed to the original onRecord with their original timing. While every gesture is on
- *    "System default" the hook is a pure pass-through.
- * 2. Presses that Nothing's own guards would drop ("disabled when screen off / locked", "activate with a single
- *    tap first") are passed through untouched, so custom actions obey the same settings as the stock key.
- * 3. Essential Voice switches: startVoiceInput is vetoed for the chosen trigger (long click / double click).
+ * What this class does:
+ *  1. Gesture actions: onRecord is hooked and the gesture (single / double / triple / long) is classified here.
+ *     A gesture with a custom action is swallowed completely, so the system function bound to it never runs.
+ *     Gestures left on "System default" are replayed to the original onRecord with their original timing.
+ *  2. Function switches (capture, voice recording, opening Essential Space) are a policy on top of the same engine.
+ *     They depend on the Recorder state, which EssentialRecorderHooks publishes (see KEY_ES_STATE).
+ *     With the capture bar open, a hold can send the screenshot to a chosen app (see KEY_ES_SHARE_REQUEST).
+ *  3. Essential Voice (dictation while a keyboard is open): NtEssentialKeyImpl classifies hold / double click itself
+ *     and starts it through NtEssentialVoiceImpl.startVoiceInput(boolean, boolean, triggerType). Returning false
+ *     there vetoes the start for that trigger (regardless of Transcribe / Translate).
+ *  4. Presses that Nothing's own guards would drop ("disabled when screen off / locked", "activate with a single
+ *     tap first") are passed through untouched, so custom behaviour obeys the same settings as the stock key.
+ *  While nothing is customised the hook is a pure pass-through.
  *
- * Every step is written to logcat with the tag "[EssentialKey][<area>]" while the debug log switch is on.
+ * Diagnostics: every step is logged as "[EssentialKey][<area>]" while the "Detailed key log" switch is on.
  */
 class EssentialKeyHooks : HookModule {
 
@@ -51,16 +61,25 @@ class EssentialKeyHooks : HookModule {
         /** Internal only (never stored): replay the press as a quick click to Nothing's pipeline. */
         private const val ACTION_CLICK = "click"
 
+        /** Internal only: ask the Recorder to send the current screenshot to the configured app. */
+        private const val ACTION_SHARE_CAPTURE = "share_capture"
+
         val GESTURES = listOf("single", "double", "triple", "long")
 
         const val ACTION_LAUNCH_APP = "com.souleven.nothingos.action.ESSENTIAL_LAUNCH_APP"
         const val EXTRA_PACKAGE = "package"
 
-        const val KEY_BLOCK_VOICE_HOLD = "pref_essential_block_voice_hold"
-        const val KEY_BLOCK_VOICE_DOUBLE = "pref_essential_block_voice_double"
         const val KEY_DEBUG_LOG = "pref_essential_debug_log"
 
-        // Essential Space / Recorder functions, switched off per function (they need the Recorder state, see below)
+        // Essential Voice (dictation) switches, per trigger
+        const val KEY_BLOCK_VOICE_HOLD = "pref_essential_block_voice_hold"
+        const val KEY_BLOCK_VOICE_DOUBLE = "pref_essential_block_voice_double"
+
+        // Send the screenshot to an app on a hold while the capture bar is open
+        const val KEY_SHARE_ENABLED = "pref_essential_share_enabled"
+        const val KEY_SHARE_APP = "pref_essential_share_app"
+
+        // Essential Space / Recorder functions that can be switched off (they follow the Recorder state)
         const val KEY_BLOCK_CAPTURE = "pref_essential_block_capture"
         const val KEY_BLOCK_VOICE_RECORD = "pref_essential_block_voice_record"
         const val KEY_BLOCK_OPEN_SPACE = "pref_essential_block_open_space"
@@ -70,6 +89,12 @@ class EssentialKeyHooks : HookModule {
          * (written by EssentialRecorderHooks, read here). Values are the Recorder's own state names.
          */
         const val KEY_ES_STATE = "nt_tweaks_es_state"
+
+        /**
+         * Settings.Secure key system_server writes to ask the Recorder to share its current screenshot.
+         * Value: "<package>|<uptimeMs>" (the uptime makes every request a change). Read by EssentialRecorderHooks.
+         */
+        const val KEY_ES_SHARE_REQUEST = "nt_tweaks_es_share"
 
         fun keyAction(gesture: String) = "pref_essential_${gesture}_action"
         fun keyApp(gesture: String) = "pref_essential_${gesture}_app"
@@ -83,10 +108,10 @@ class EssentialKeyHooks : HookModule {
                     prefs.getString(keyApp(it), "") == pkg
             }
 
-        /** Debug logging is on by default in this build (switch in settings). */
-        fun debugEnabled(prefs: Prefs?): Boolean = prefs?.getBoolean(KEY_DEBUG_LOG, true) ?: false
+        /** Off by default. A null [prefs] (process without prefs) never logs. */
+        fun debugEnabled(prefs: Prefs?): Boolean = prefs?.getBoolean(KEY_DEBUG_LOG, false) ?: false
 
-        /** One line per event: "[EssentialKey][area] u=<uptimeMs> message". Also used from the SystemUI side. */
+        /** One line per event: "[EssentialKey][area] u=<uptimeMs> message". Also used by the SystemUI/Recorder side. */
         fun log(prefs: Prefs?, area: String, msg: String) {
             if (!debugEnabled(prefs)) return
             XposedBridge.log("$TAG [EssentialKey][$area] u=${SystemClock.uptimeMillis()} $msg")
@@ -105,11 +130,6 @@ class EssentialKeyHooks : HookModule {
         // NtEssentialVoiceImpl$TriggerType: 0 DEFAULT, 1 EK_LONG_CLICK, 2 EK_DOUBLE_CLICK
         private const val TRIGGER_LONG_CLICK = 1
         private const val TRIGGER_DOUBLE_CLICK = 2
-
-        private const val LONG_PRESS_MS = 500L // Essential Recorder fires onLongClick ~505-520 ms after DOWN
-        private const val MULTI_PRESS_WINDOW_MS = 300L
-        private const val MAX_PRESSES = 3
-        private const val VIB_LOG_WINDOW_MS = 3000L
         private const val VOICE_ACTIVE_MAX_MS = 120_000L
 
         private fun triggerName(t: Int) = when (t) {
@@ -118,15 +138,25 @@ class EssentialKeyHooks : HookModule {
             TRIGGER_DOUBLE_CLICK -> "EK_DOUBLE_CLICK"
             else -> "UNKNOWN($t)"
         }
+
+        private const val LONG_PRESS_MS = 500L // Essential Recorder fires onLongClick ~505-520 ms after DOWN
+        private const val MULTI_PRESS_WINDOW_MS = 300L
+        private const val MAX_PRESSES = 3
+        private const val CLICK_HOLD_MS = 80L
+        private const val VIB_LOG_WINDOW_MS = 3000L
     }
 
     private class Press(val down: KeyEvent) {
         var up: KeyEvent? = null
     }
 
-    // --- state touched only from the hook thread ---
+    // --- state touched only from the hook (input) thread ---
     @Volatile private var ownedPress = false
     private var pendingActivation = false
+    private var stateInitDone = false
+
+    /** Policy computed at the DOWN of the current press, handed to the handler thread. */
+    @Volatile private var latestPolicy: Map<String, String> = emptyMap()
 
     // --- state touched only from [handler] ---
     private val presses = ArrayList<Press>()
@@ -135,10 +165,6 @@ class EssentialKeyHooks : HookModule {
     private var sequenceStart = 0L
     private var lastUpUptime = 0L
     private var seqPolicy: Map<String, String> = emptyMap()
-    private var stateInitDone = false
-
-    /** Policy computed at the DOWN of the current press, handed to the handler thread. */
-    @Volatile private var latestPolicy: Map<String, String> = emptyMap()
 
     // --- shared ---
     @Volatile private var origMethod: Member? = null
@@ -153,10 +179,29 @@ class EssentialKeyHooks : HookModule {
     private val thread = HandlerThread("NtTweaksEssentialKey").apply { start() }
     private val handler = Handler(thread.looper)
 
-    private val longRunnable = Runnable { onLongTimeout() }
-    private val windowRunnable = Runnable { classifyAndFinish() }
+    private val longRunnable = Runnable { guarded("long press timeout") { onLongTimeout() } }
+    private val windowRunnable = Runnable { guarded("multi press window") { classifyAndFinish() } }
 
-    private fun d(area: String, msg: String) = log(prefs, area, msg)
+    /** Lazy log: the message is only built when the debug log is on. */
+    private inline fun d(area: String, msg: () -> String) {
+        if (debugEnabled(prefs)) log(prefs, area, msg())
+    }
+
+    /**
+     * Everything that runs on our own thread goes through here. An exception that escapes a HandlerThread
+     * would kill system_server, so nothing is allowed to escape.
+     */
+    private fun guarded(what: String, block: () -> Unit) {
+        try {
+            block()
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG [EssentialKey][err] $what failed: $t")
+        }
+    }
+
+    private fun post(delayMs: Long = 0L, what: String = "handler task", block: () -> Unit) {
+        handler.postDelayed({ guarded(what, block) }, delayMs)
+    }
 
     override fun handleLoadPackage(lpparam: LoadPackageParam, prefs: Prefs) {
         if (lpparam.packageName != "android") return
@@ -168,7 +213,7 @@ class EssentialKeyHooks : HookModule {
 
         val cls = findClass(IMPL_CLASS, lpparam.classLoader)
         if (cls == null) {
-            XposedBridge.log("$TAG [EssentialKey][hook] $IMPL_CLASS not found, gesture remap disabled")
+            XposedBridge.log("$TAG [EssentialKey][hook] $IMPL_CLASS not found, Essential key features disabled")
             return
         }
         try {
@@ -177,7 +222,9 @@ class EssentialKeyHooks : HookModule {
                     try {
                         onRecordHook(param)
                     } catch (t: Throwable) {
-                        // never break the stock path because of us
+                        // never break the stock path because of us: fail open (event goes to Nothing's code)
+                        ownedPress = false
+                        pendingActivation = false
                         XposedBridge.log("$TAG [EssentialKey][err] hook error: $t")
                     }
                 }
@@ -199,43 +246,44 @@ class EssentialKeyHooks : HookModule {
         return null
     }
 
-    // ---------------------------------------------------------------- Essential Voice switches
+    // ---------------------------------------------------------------- Essential Voice (dictation) switches
 
     /**
      * NtEssentialKeyImpl starts Essential Voice through NtEssentialVoiceImpl.startVoiceInput(boolean, boolean, int)
-     * where the int is the trigger type. Returning false there vetoes the start for that gesture only,
+     * where the int is the trigger type. Returning false there vetoes the start for that trigger only,
      * regardless of the Transcribe / Translate choice made in Nothing's settings.
      */
     private fun hookVoiceImpl(cl: ClassLoader) {
         val cls = findClass(VOICE_CLASS, cl)
         if (cls == null) {
-            XposedBridge.log("$TAG [EssentialKey][hook] $VOICE_CLASS not found, voice switches disabled")
+            XposedBridge.log("$TAG [EssentialKey][hook] $VOICE_CLASS not found, Essential Voice switches disabled")
             return
         }
         try {
             XposedBridge.hookAllMethods(cls, "startVoiceInput", object : XC_MethodHook() {
                 override fun beforeHookedMethod(param: MethodHookParam) {
-                    val type = param.args.getOrNull(2) as? Int ?: return
-                    val block = (type == TRIGGER_LONG_CLICK && prefs.getBoolean(KEY_BLOCK_VOICE_HOLD, false)) ||
-                        (type == TRIGGER_DOUBLE_CLICK && prefs.getBoolean(KEY_BLOCK_VOICE_DOUBLE, false))
-                    d("voice", "startVoiceInput args=${param.args.joinToString()} trigger=${triggerName(type)} veto=$block")
-                    if (block) {
-                        param.setObjectExtra("ntBlocked", true)
-                        param.result = false
-                    }
+                    try {
+                        val type = param.args.getOrNull(2) as? Int ?: return
+                        val block = (type == TRIGGER_LONG_CLICK && prefs.getBoolean(KEY_BLOCK_VOICE_HOLD, false)) ||
+                            (type == TRIGGER_DOUBLE_CLICK && prefs.getBoolean(KEY_BLOCK_VOICE_DOUBLE, false))
+                        d("voice") { "startVoiceInput args=${param.args.joinToString()} trigger=${triggerName(type)} veto=$block" }
+                        if (block) {
+                            param.setObjectExtra("ntBlocked", true)
+                            param.result = false
+                        }
+                    } catch (_: Throwable) {}
                 }
 
                 override fun afterHookedMethod(param: MethodHookParam) {
-                    if (param.getObjectExtra("ntBlocked") == true) return
-                    if (param.hasThrowable()) return
+                    if (param.getObjectExtra("ntBlocked") == true || param.hasThrowable()) return
                     val ok = param.result as? Boolean ?: return
-                    d("voice", "startVoiceInput accepted=$ok")
+                    d("voice") { "startVoiceInput accepted=$ok" }
                     if (ok) voiceActiveSince = SystemClock.uptimeMillis()
                 }
             })
             XposedBridge.hookAllMethods(cls, "stopVoiceInput", object : XC_MethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam) {
-                    d("voice", "stopVoiceInput args=${param.args.joinToString()} result=${param.result}")
+                    d("voice") { "stopVoiceInput args=${param.args.joinToString()} result=${param.result}" }
                     voiceActiveSince = 0L
                 }
             })
@@ -245,6 +293,7 @@ class EssentialKeyHooks : HookModule {
         }
     }
 
+    /** True while an Essential Voice session started by the key runs: its stop-press must reach Nothing's code. */
     private fun voiceActive(): Boolean {
         val since = voiceActiveSince
         return since != 0L && SystemClock.uptimeMillis() - since < VOICE_ACTIVE_MAX_MS
@@ -252,7 +301,10 @@ class EssentialKeyHooks : HookModule {
 
     // ---------------------------------------------------------------- vibration scan (diagnostics only)
 
-    /** Logs every vibration request made shortly after an Essential key event, to find the source of double haptics. */
+    /**
+     * DIAGNOSTIC: logs every vibration request made shortly after an Essential key event, to find the source of
+     * double haptics. Does nothing (one comparison) while the debug log is off. Safe to remove.
+     */
     private fun hookVibrationScan(cl: ClassLoader) {
         val cls = findClass(VIBRATOR_MANAGER_CLASS, cl) ?: run {
             XposedBridge.log("$TAG [EssentialKey][hook] $VIBRATOR_MANAGER_CLASS not found, vibration scan disabled")
@@ -266,7 +318,7 @@ class EssentialKeyHooks : HookModule {
                         if (lastActivityUptime == 0L || since > VIB_LOG_WINDOW_MS || !debugEnabled(prefs)) return
                         val a = param.args
                         val usage = (a.getOrNull(4) as? VibrationAttributes)?.usage
-                        d("vib", "vibrate +${since}ms uid=${a.getOrNull(0)} pkg=${a.getOrNull(2)} usage=$usage reason=${a.getOrNull(5)} effect=${a.getOrNull(3)}")
+                        d("vib") { "vibrate +${since}ms uid=${a.getOrNull(0)} pkg=${a.getOrNull(2)} usage=$usage reason=${a.getOrNull(5)} effect=${a.getOrNull(3)}" }
                     } catch (_: Throwable) {}
                 }
             })
@@ -276,7 +328,7 @@ class EssentialKeyHooks : HookModule {
                         val since = SystemClock.uptimeMillis() - lastActivityUptime
                         if (lastActivityUptime == 0L || since > VIB_LOG_WINDOW_MS || !debugEnabled(prefs)) return
                         val a = param.args
-                        d("vib", "haptic +${since}ms uid=${a.getOrNull(0)} pkg=${a.getOrNull(2)} constant=${a.getOrNull(3)} reason=${a.getOrNull(4)} flags=${a.getOrNull(5)}")
+                        d("vib") { "haptic +${since}ms uid=${a.getOrNull(0)} pkg=${a.getOrNull(2)} constant=${a.getOrNull(3)} reason=${a.getOrNull(4)} flags=${a.getOrNull(5)}" }
                     } catch (_: Throwable) {}
                 }
             })
@@ -295,17 +347,17 @@ class EssentialKeyHooks : HookModule {
 
         if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
             val reason = decidePress()
-            d("evt", "DOWN decision=${if (ownedPress) "OWN" else "PASS"} reason=$reason lat=${now - event.eventTime}ms $event")
+            d("evt") { "DOWN decision=${if (ownedPress) "OWN" else "PASS"} reason=$reason lat=${now - event.eventTime}ms $event" }
         } else if (event.action == KeyEvent.ACTION_UP) {
             if (!ownedPress && pendingActivation) {
                 // mirrors NtEssentialKeyImpl: the UP of an un-activated press arms the key for 2 seconds
                 pendingActivation = false
                 activatedAtWall = System.currentTimeMillis()
-                d("evt", "UP arms key (mistouch prevention) for ${MISTOUCH_WINDOW_MS}ms")
+                d("evt") { "UP arms key (mistouch prevention) for ${MISTOUCH_WINDOW_MS}ms" }
             }
-            d("evt", "UP decision=${if (ownedPress) "OWN" else "PASS"} lat=${now - event.eventTime}ms $event")
+            d("evt") { "UP decision=${if (ownedPress) "OWN" else "PASS"} lat=${now - event.eventTime}ms $event" }
         } else {
-            d("evt", "OTHER decision=${if (ownedPress) "OWN" else "PASS"} $event")
+            d("evt") { "OTHER decision=${if (ownedPress) "OWN" else "PASS"} $event" }
         }
 
         if (!ownedPress) return // pass-through to Nothing's pipeline
@@ -319,9 +371,9 @@ class EssentialKeyHooks : HookModule {
         when (event.action) {
             KeyEvent.ACTION_DOWN -> {
                 val policy = latestPolicy
-                handler.post { onDown(copy, policy) }
+                post(what = "DOWN") { onDown(copy, policy) }
             }
-            KeyEvent.ACTION_UP -> handler.post { onUp(copy) }
+            KeyEvent.ACTION_UP -> post(what = "UP") { onUp(copy) }
         }
     }
 
@@ -338,7 +390,7 @@ class EssentialKeyHooks : HookModule {
         }
         if (voiceActive()) {
             ownedPress = false
-            return "voice-active (key press may be needed to stop Essential Voice)"
+            return "voice-active (a key press may be needed to stop Essential Voice)"
         }
         val guard = nativeGuardReason()
         if (guard != null) {
@@ -350,17 +402,20 @@ class EssentialKeyHooks : HookModule {
     }
 
     private fun needsEssentialState() =
-        prefs.getBoolean(KEY_BLOCK_CAPTURE, false) || prefs.getBoolean(KEY_BLOCK_VOICE_RECORD, false)
+        prefs.getBoolean(KEY_BLOCK_CAPTURE, false) || prefs.getBoolean(KEY_BLOCK_VOICE_RECORD, false) ||
+            shareConfigured()
+
+    private fun shareConfigured() =
+        prefs.getBoolean(KEY_SHARE_ENABLED, false) && prefs.getString(KEY_SHARE_APP, "").isNotEmpty()
 
     /**
      * What should happen for [gesture] given the Recorder [state]?
      * A custom action wins; otherwise the per-function switches decide; otherwise the system default.
-     * Recorder behaviour (from its own logs): in IDLE a press takes a screenshot immediately (even before the
-     * gesture is known), a hold adds a voice recording; in FOCUS (capture bar open) a click saves, a hold
-     * records a voice note and saves on release.
      */
     private fun effectiveAction(gesture: String, state: String): String {
         val custom = prefs.getString(keyAction(gesture), ACTION_DEFAULT)
+        // "open app" without a chosen app must not swallow the stock behaviour for nothing
+        if (custom == ACTION_APP && prefs.getString(keyApp(gesture), "").isEmpty()) return ACTION_DEFAULT
         if (custom != ACTION_DEFAULT) return custom
         val idle = state == "IDLE"
         val focus = state == "FOCUS" || state == "FOCUS_SHARE"
@@ -371,6 +426,7 @@ class EssentialKeyHooks : HookModule {
             "single" -> if (blockCapture && idle) ACTION_NONE else ACTION_DEFAULT
             "double" -> if (blockSpace) ACTION_NONE else ACTION_DEFAULT
             "long" -> when {
+                focus && shareConfigured() -> ACTION_SHARE_CAPTURE // hold with the capture bar open: send it on
                 blockRecord -> if (focus) ACTION_CLICK else ACTION_NONE // in the capture bar: just save, no voice note
                 blockCapture && idle -> ACTION_NONE // a hold in IDLE would take the screenshot too
                 else -> ACTION_DEFAULT
@@ -387,11 +443,11 @@ class EssentialKeyHooks : HookModule {
             if (!stateInitDone) {
                 // a state left over from a previous boot must not survive
                 stateInitDone = true
-                android.provider.Settings.Secure.putString(resolver, KEY_ES_STATE, "IDLE")
+                Settings.Secure.putString(resolver, KEY_ES_STATE, "IDLE")
             }
-            android.provider.Settings.Secure.getString(resolver, KEY_ES_STATE) ?: "IDLE"
+            Settings.Secure.getString(resolver, KEY_ES_STATE) ?: "IDLE"
         } catch (t: Throwable) {
-            d("err", "esState failed: $t")
+            d("err") { "esState failed: $t" }
             "IDLE"
         }
     }
@@ -406,7 +462,7 @@ class EssentialKeyHooks : HookModule {
             val locked = (ctx.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager)?.isKeyguardLocked ?: false
             val mistouchOn = secureInt(resolver, SETTING_MISTOUCH) != 0
             val armedFor = System.currentTimeMillis() - activatedAtWall
-            d("cfg", "blockWhenOff=$blockOn interactive=$interactive locked=$locked mistouch=$mistouchOn armedFor=${armedFor}ms")
+            d("cfg") { "blockWhenOff=$blockOn interactive=$interactive locked=$locked mistouch=$mistouchOn armedFor=${armedFor}ms" }
             when {
                 blockOn && !interactive -> "native-guard:screen-off"
                 blockOn && locked -> "native-guard:locked"
@@ -417,16 +473,14 @@ class EssentialKeyHooks : HookModule {
                 else -> null
             }
         } catch (t: Throwable) {
-            d("err", "nativeGuardReason failed: $t")
+            d("err") { "nativeGuardReason failed: $t" }
             null
         }
     }
 
-    private fun secureInt(resolver: android.content.ContentResolver, key: String): Int =
+    private fun secureInt(resolver: ContentResolver, key: String): Int =
         try {
-            XposedHelpers.callStaticMethod(
-                android.provider.Settings.Secure::class.java, "getIntForUser", resolver, key, 0, USER_CURRENT
-            ) as? Int ?: 0
+            XposedHelpers.callStaticMethod(Settings.Secure::class.java, "getIntForUser", resolver, key, 0, USER_CURRENT) as? Int ?: 0
         } catch (_: Throwable) {
             0
         }
@@ -438,7 +492,7 @@ class EssentialKeyHooks : HookModule {
 
         // stale state (e.g. a cancelled press whose UP never arrived)
         if (presses.isNotEmpty() && (presses.last().up == null || longFired)) {
-            d("cls", "stale state reset (presses=${presses.size} lastUpMissing=${presses.last().up == null} longFired=$longFired)")
+            d("cls") { "stale state reset (presses=${presses.size} lastUpMissing=${presses.last().up == null} longFired=$longFired)" }
             resetState()
         }
 
@@ -446,11 +500,10 @@ class EssentialKeyHooks : HookModule {
         if (presses.isEmpty()) {
             sequenceStart = now
             seqPolicy = policy
-            d("cfg", "sequence policy=${policy.filterValues { it != ACTION_DEFAULT }}")
+            d("cfg") { "sequence policy=${policy.filterValues { it != ACTION_DEFAULT }}" }
         }
         presses.add(Press(ev))
-        val gap = if (presses.size > 1) now - lastUpUptime else -1L
-        d("cls", "press#${presses.size} DOWN +${now - sequenceStart}ms gapSincePrevUp=${gap}ms")
+        d("cls") { "press#${presses.size} DOWN +${now - sequenceStart}ms gapSincePrevUp=${if (presses.size > 1) now - lastUpUptime else -1L}ms" }
         if (presses.size == 1) {
             longFired = false
             handler.removeCallbacks(longRunnable)
@@ -459,14 +512,15 @@ class EssentialKeyHooks : HookModule {
     }
 
     private fun onUp(ev: KeyEvent) {
-        val last = presses.lastOrNull() ?: run {
-            d("cls", "UP without DOWN ignored")
+        val last = presses.lastOrNull()
+        if (last == null) {
+            d("cls") { "UP without DOWN ignored" }
             return
         }
         last.up = ev
         val now = SystemClock.uptimeMillis()
         lastUpUptime = now
-        d("cls", "press#${presses.size} UP +${now - sequenceStart}ms held=${ev.eventTime - last.down.eventTime}ms")
+        d("cls") { "press#${presses.size} UP +${now - sequenceStart}ms held=${ev.eventTime - last.down.eventTime}ms" }
 
         if (longFired) {
             if (longReplayedDown) replay(ev, 0L, "long-up")
@@ -488,17 +542,21 @@ class EssentialKeyHooks : HookModule {
         if (presses.size != 1 || presses[0].up != null) return
         longFired = true
         val action = seqPolicy["long"] ?: ACTION_DEFAULT
-        d("cls", "LONG detected after ${LONG_PRESS_MS}ms -> $action")
-        if (action == ACTION_DEFAULT) {
-            longReplayedDown = true
-            replay(presses[0].down, 0L, "long-down")
-        } else if (action == ACTION_CLICK) {
-            // keep the hold away from the Recorder (no voice note) and give it a quick click instead
-            longReplayedDown = false
-            replayClick(presses[0].down)
-        } else {
-            longReplayedDown = false
-            execute(action, "long")
+        d("cls") { "LONG detected after ${LONG_PRESS_MS}ms -> $action" }
+        when (action) {
+            ACTION_DEFAULT -> {
+                longReplayedDown = true
+                replay(presses[0].down, 0L, "long-down")
+            }
+            ACTION_CLICK -> {
+                // keep the hold away from the Recorder (no voice note) and give it a quick click instead
+                longReplayedDown = false
+                replayClick(presses[0].down)
+            }
+            else -> {
+                longReplayedDown = false
+                execute(action, "long")
+            }
         }
     }
 
@@ -516,7 +574,7 @@ class EssentialKeyHooks : HookModule {
             else -> "triple"
         }
         val action = seqPolicy[gesture] ?: ACTION_DEFAULT
-        d("cls", "classified $gesture (${snapshot.size} press) -> $action")
+        d("cls") { "classified $gesture (${snapshot.size} press) -> $action" }
         if (action == ACTION_DEFAULT) {
             // give the stock pipeline exactly what it would have seen, with the original gaps
             val base = snapshot[0].down.eventTime
@@ -541,25 +599,21 @@ class EssentialKeyHooks : HookModule {
         val method = origMethod
         val target = origTarget
         if (method == null || target == null) {
-            d("replay", "$label skipped: original method unknown")
+            d("replay") { "$label skipped: original method unknown" }
             return
         }
-        d("replay", "$label scheduled in ${delayMs}ms")
-        handler.postDelayed({
-            try {
-                d("replay", "$label -> original onRecord")
-                XposedBridge.invokeOriginalMethod(method, target, arrayOf<Any?>(KeyEvent(ev)))
-            } catch (t: Throwable) {
-                XposedBridge.log("$TAG [EssentialKey][err] replay $label failed: $t")
-            }
-        }, delayMs)
+        d("replay") { "$label scheduled in ${delayMs}ms" }
+        post(delayMs, "replay $label") {
+            d("replay") { "$label -> original onRecord" }
+            XposedBridge.invokeOriginalMethod(method, target, arrayOf<Any?>(KeyEvent(ev)))
+        }
     }
 
-    /** DOWN now, UP 80 ms later: what a quick tap looks like to Nothing's pipeline. */
+    /** DOWN now, UP shortly after: what a quick tap looks like to Nothing's pipeline. */
     private fun replayClick(down: KeyEvent) {
         replay(down, 0L, "click-down")
-        val up = KeyEvent.changeTimeRepeat(KeyEvent.changeAction(down, KeyEvent.ACTION_UP), down.eventTime + 80, 0)
-        replay(up, 80L, "click-up")
+        val up = KeyEvent.changeTimeRepeat(KeyEvent.changeAction(down, KeyEvent.ACTION_UP), down.eventTime + CLICK_HOLD_MS, 0)
+        replay(up, CLICK_HOLD_MS, "click-up")
     }
 
     // ---------------------------------------------------------------- actions
@@ -579,28 +633,42 @@ class EssentialKeyHooks : HookModule {
         lastActivityUptime = SystemClock.uptimeMillis()
         val ctx = systemContext()
         if (ctx == null) {
-            d("act", "$gesture -> $action aborted: no system context")
+            d("act") { "$gesture -> $action aborted: no system context" }
             return
         }
-        d("act", "$gesture -> $action")
+        d("act") { "$gesture -> $action" }
         when (action) {
-            ACTION_NONE -> return
-            ACTION_FLASHLIGHT -> {
-                // SystemUI's torch toggle already gives its own haptic; vibrating here too made it double
+            ACTION_NONE -> Unit
+            // SystemUI's torch toggle already gives its own haptic, so none is added here
+            ACTION_FLASHLIGHT ->
                 sendToSystemUi(ctx, Intent(TorchHooks.ACTION_TOGGLE_TORCH).putExtra(TorchHooks.EXTRA_ESSENTIAL, true))
-            }
-            ACTION_RINGER -> {
-                cycleRinger(ctx)
-            }
+            ACTION_RINGER -> cycleRinger(ctx)
+            ACTION_SHARE_CAPTURE -> requestShare(ctx)
             ACTION_APP -> {
                 val pkg = prefs.getString(keyApp(gesture), "")
                 if (pkg.isEmpty()) {
-                    d("act", "$gesture -> app aborted: no package selected")
+                    d("act") { "$gesture -> app aborted: no package selected" }
                     return
                 }
                 sendToSystemUi(ctx, Intent(ACTION_LAUNCH_APP).putExtra(EXTRA_PACKAGE, pkg))
             }
-            else -> d("act", "unknown action '$action'")
+            else -> d("act") { "unknown action '$action'" }
+        }
+    }
+
+    /** Asks EssentialRecorderHooks (in the Recorder process) to send the current screenshot to the chosen app. */
+    private fun requestShare(ctx: Context) {
+        val pkg = prefs.getString(KEY_SHARE_APP, "")
+        if (pkg.isEmpty()) {
+            d("act") { "share aborted: no app selected" }
+            return
+        }
+        try {
+            vibrate(ctx, "share capture")
+            Settings.Secure.putString(ctx.contentResolver, KEY_ES_SHARE_REQUEST, "$pkg|${SystemClock.uptimeMillis()}")
+            d("act") { "share requested -> $pkg" }
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG [EssentialKey][err] share request failed: $t")
         }
     }
 
@@ -609,11 +677,11 @@ class EssentialKeyHooks : HookModule {
             intent.setPackage("com.android.systemui")
             val all = XposedHelpers.getStaticObjectField(UserHandle::class.java, "ALL")
             XposedHelpers.callMethod(ctx, "sendBroadcastAsUser", intent, all)
-            d("act", "broadcast sent action=${intent.action} extras=${intent.extras?.keySet()}")
+            d("act") { "broadcast sent action=${intent.action} extras=${intent.extras?.keySet()}" }
         } catch (t: Throwable) {
             try {
                 ctx.sendBroadcast(intent)
-                d("act", "broadcast sent via fallback (${t.message})")
+                d("act") { "broadcast sent via fallback (${t.message})" }
             } catch (_: Throwable) {
                 XposedBridge.log("$TAG [EssentialKey][err] broadcast failed: ${t.message}")
             }
@@ -640,7 +708,7 @@ class EssentialKeyHooks : HookModule {
                 how = "setRingerMode"
                 am.ringerMode = next
             }
-            d("act", "ringer $before -> $next via $how (now ${am.ringerMode})")
+            d("act") { "ringer $before -> $next via $how (now ${am.ringerMode})" }
         } catch (t: Throwable) {
             XposedBridge.log("$TAG [EssentialKey][err] ringer change failed: $t")
         }
@@ -650,7 +718,7 @@ class EssentialKeyHooks : HookModule {
         try {
             val v = ctx.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
             if (v.hasVibrator()) {
-                d("vib", "own EFFECT_CLICK requested ($why)")
+                d("vib") { "own EFFECT_CLICK requested ($why)" }
                 v.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK))
             }
         } catch (_: Throwable) {}

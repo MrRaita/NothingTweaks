@@ -215,12 +215,6 @@
     <string name="essential_action_flashlight">Toggle flashlight</string>
     <string name="essential_action_ringer">Cycle sound mode</string>
     <string name="essential_action_app">Open app</string>
-    <string name="cat_essential_ai">Essential key · Essential Voice</string>
-    <string name="pref_essential_block_voice_hold_title">Disable Essential Voice on long press</string>
-    <string name="pref_essential_block_voice_hold_summary">Essential Voice will not start when you press and hold the key, whatever action is chosen in Nothing’s own settings (Transcribe or Translate).</string>
-    <string name="pref_essential_block_voice_double_title">Disable Essential Voice on double press</string>
-    <string name="pref_essential_block_voice_double_summary">Essential Voice will not start when you double press the key, whatever action is chosen in Nothing’s own settings (Transcribe or Translate).</string>
-    <string name="pref_essential_ai_note">These switches work on their own, without assigning anything to a gesture. Other key functions (for example the single press capture) can be turned off by setting that gesture to “Do nothing” above.</string>
     <string name="pref_essential_debug_log_title">Detailed key log</string>
     <string name="pref_essential_debug_log_summary">Writes every Essential key event, decision, action and vibration to logcat (search for “EssentialKey”).</string>
     <string name="cat_essential_space">Essential key · Essential Space</string>
@@ -231,4 +225,13 @@
     <string name="pref_essential_block_space_title">Disable opening Essential Space on double press</string>
     <string name="pref_essential_block_space_summary">A double press does nothing instead of opening Essential Space.</string>
     <string name="pref_essential_space_note">These switches need Essential Recorder (com.nothing.ntessentialrecorder) in the LSPosed scope of this module, because they follow the state of its capture bar.</string>
+    <string name="cat_essential_ai">Essential key · Essential Voice</string>
+    <string name="pref_essential_block_voice_hold_title">Disable voice dictation on long press</string>
+    <string name="pref_essential_block_voice_hold_summary">With a keyboard open, holding the key no longer starts Essential Voice (recording and speech to text), whatever Transcribe or Translate is chosen in Nothing’s settings.</string>
+    <string name="pref_essential_block_voice_double_title">Disable voice dictation on double press</string>
+    <string name="pref_essential_block_voice_double_summary">With a keyboard open, a double press no longer starts Essential Voice, whatever Transcribe or Translate is chosen in Nothing’s settings.</string>
+    <string name="pref_essential_ai_note">These switches work on their own, without assigning anything to a gesture. They only affect Essential Voice (dictation into a text field); the screenshot and voice note functions are in the Essential Space section.</string>
+    <string name="pref_essential_share_title">Send screenshot to an app on hold</string>
+    <string name="pref_essential_share_summary">With the capture bar open, holding the key sends the screenshot to the chosen app (for example a translator) instead of recording a voice note.</string>
+    <string name="pref_essential_share_app_title">Target app</string>
 </resources>

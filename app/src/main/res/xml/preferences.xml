@@ -467,37 +467,12 @@
             app:summary="@string/pref_essential_triple_note"
             app:selectable="false"
             app:iconSpaceReserved="false" />
-    </PreferenceCategory>
-
-    <PreferenceCategory
-        app:title="@string/cat_essential_ai"
-        app:iconSpaceReserved="false">
-
-        <SwitchPreferenceCompat
-            app:key="pref_essential_block_voice_hold"
-            app:title="@string/pref_essential_block_voice_hold_title"
-            app:summary="@string/pref_essential_block_voice_hold_summary"
-            app:defaultValue="false"
-            app:iconSpaceReserved="false" />
-
-        <SwitchPreferenceCompat
-            app:key="pref_essential_block_voice_double"
-            app:title="@string/pref_essential_block_voice_double_title"
-            app:summary="@string/pref_essential_block_voice_double_summary"
-            app:defaultValue="false"
-            app:iconSpaceReserved="false" />
 
         <SwitchPreferenceCompat
             app:key="pref_essential_debug_log"
             app:title="@string/pref_essential_debug_log_title"
             app:summary="@string/pref_essential_debug_log_summary"
-            app:defaultValue="true"
-            app:iconSpaceReserved="false" />
-
-        <Preference
-            app:key="pref_essential_ai_note"
-            app:summary="@string/pref_essential_ai_note"
-            app:selectable="false"
+            app:defaultValue="false"
             app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
@@ -526,9 +501,47 @@
             app:defaultValue="false"
             app:iconSpaceReserved="false" />
 
+        <SwitchPreferenceCompat
+            app:key="pref_essential_share_enabled"
+            app:title="@string/pref_essential_share_title"
+            app:summary="@string/pref_essential_share_summary"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="pref_essential_share_app"
+            app:title="@string/pref_essential_share_app_title"
+            app:summary="@string/pref_essential_app_summary"
+            app:iconSpaceReserved="false" />
+
         <Preference
             app:key="pref_essential_space_note"
             app:summary="@string/pref_essential_space_note"
+            app:selectable="false"
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:title="@string/cat_essential_ai"
+        app:iconSpaceReserved="false">
+
+        <SwitchPreferenceCompat
+            app:key="pref_essential_block_voice_hold"
+            app:title="@string/pref_essential_block_voice_hold_title"
+            app:summary="@string/pref_essential_block_voice_hold_summary"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            app:key="pref_essential_block_voice_double"
+            app:title="@string/pref_essential_block_voice_double_title"
+            app:summary="@string/pref_essential_block_voice_double_summary"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="pref_essential_ai_note"
+            app:summary="@string/pref_essential_ai_note"
             app:selectable="false"
             app:iconSpaceReserved="false" />
     </PreferenceCategory>

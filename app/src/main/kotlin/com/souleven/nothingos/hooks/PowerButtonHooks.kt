@@ -311,9 +311,10 @@ class PowerButtonHooks : HookModule {
                                 }
                             }
                         }
+                        // not exported: only system_server (uid 1000, the sender) and SystemUI itself can deliver to it
                         val filter = android.content.IntentFilter(EssentialKeyHooks.ACTION_LAUNCH_APP)
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            app.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+                            app.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
                         } else {
                             app.registerReceiver(receiver, filter)
                         }
