@@ -1,5 +1,6 @@
 package com.souleven.nothingos.hooks
 
+import android.app.AndroidAppHelper
 import android.app.Application
 import android.content.ClipData
 import android.content.ContentResolver
@@ -14,7 +15,6 @@ import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
 import com.souleven.nothingos.MainHook.Companion.TAG
-import de.robv.android.xposed.AndroidAppHelper
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
