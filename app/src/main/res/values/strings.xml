@@ -215,8 +215,6 @@
     <string name="essential_action_flashlight">Toggle flashlight</string>
     <string name="essential_action_ringer">Cycle sound mode</string>
     <string name="essential_action_app">Open app</string>
-    <string name="pref_essential_debug_log_title">Essential key log</string>
-    <string name="pref_essential_debug_log_summary">Write key events to logcat (tag EssentialKey)</string>
     <string name="cat_essential_space">Essential key · Essential Space</string>
     <string name="pref_essential_block_capture_title">Disable screenshot capture</string>
     <string name="pref_essential_block_capture_summary">Pressing the key does not take a screenshot</string>
@@ -229,8 +227,6 @@
     <string name="pref_essential_block_voice_hold_summary">Long press does not start Essential Voice</string>
     <string name="pref_essential_block_voice_double_title">Disable dictation on double press</string>
     <string name="pref_essential_block_voice_double_summary">Double press does not start Essential Voice</string>
-    <string name="pref_essential_share_title">Send screenshot to an app</string>
-    <string name="pref_essential_share_summary">Hold with the capture bar open to send the screenshot to the selected app</string>
     <string name="pref_essential_capture_keyboard_title">Screenshot with keyboard open</string>
     <string name="pref_essential_capture_keyboard_summary">A single press takes a screenshot while a keyboard is shown</string>
 </resources>

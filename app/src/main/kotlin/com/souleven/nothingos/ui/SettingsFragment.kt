@@ -255,46 +255,6 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
             appPref.isVisible = actionPref.value == EssentialKeyHooks.ACTION_APP
             refreshApp()
         }
-        wireEssentialShare()
-    }
-
-    /** "Send screenshot to an app on hold": a switch plus an app picker that is only shown while the switch is on. */
-    private fun wireEssentialShare() {
-        val switchPref = findPreference<SwitchPreferenceCompat>(EssentialKeyHooks.KEY_SHARE_ENABLED) ?: return
-        val appPref = findPreference<Preference>(EssentialKeyHooks.KEY_SHARE_APP) ?: return
-
-        fun refreshApp() {
-            val savedPkg = preferenceManager.sharedPreferences?.getString(EssentialKeyHooks.KEY_SHARE_APP, null)
-            if (!savedPkg.isNullOrEmpty()) {
-                try {
-                    val pm = requireContext().packageManager
-                    val info = pm.getApplicationInfo(savedPkg, 0)
-                    appPref.summary = pm.getApplicationLabel(info)
-                    appPref.icon = pm.getApplicationIcon(info)
-                } catch (_: Throwable) {
-                    appPref.summary = savedPkg
-                    appPref.icon = null
-                }
-            } else {
-                appPref.summary = getString(R.string.pref_essential_app_summary)
-                appPref.icon = null
-            }
-        }
-
-        switchPref.setOnPreferenceChangeListener { _, newValue ->
-            val on = newValue == true
-            appPref.isVisible = on
-            if (on && preferenceManager.sharedPreferences?.getString(EssentialKeyHooks.KEY_SHARE_APP, null).isNullOrEmpty()) {
-                showAppPickerDialog(appPref, EssentialKeyHooks.KEY_SHARE_APP)
-            }
-            true
-        }
-        appPref.setOnPreferenceClickListener {
-            showAppPickerDialog(appPref, EssentialKeyHooks.KEY_SHARE_APP)
-            true
-        }
-        appPref.isVisible = switchPref.isChecked
-        refreshApp()
     }
 
     private fun wirePowerButtonDependencies() {

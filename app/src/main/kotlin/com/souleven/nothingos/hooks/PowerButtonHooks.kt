@@ -30,9 +30,6 @@ class PowerButtonHooks : HookModule {
 
         @Volatile
         private var essentialReceiverRegistered = false
-
-        @Volatile
-        private var sEssentialLogPrefs: Prefs? = null
     }
 
     override fun handleLoadPackage(lpparam: LoadPackageParam, prefs: Prefs) {
@@ -292,19 +289,11 @@ class PowerButtonHooks : HookModule {
                             override fun onReceive(c: Context?, intent: Intent?) {
                                 if (intent?.action != EssentialKeyHooks.ACTION_LAUNCH_APP) return
                                 prefs.forceReload()
-                                sEssentialLogPrefs = prefs
                                 val pkg = intent?.getStringExtra(EssentialKeyHooks.EXTRA_PACKAGE).orEmpty()
-                                EssentialKeyHooks.log(prefs, "su", "launch broadcast received pkg=$pkg receiver=${System.identityHashCode(this)}")
                                 // only launch what the user assigned to an Essential key gesture
-                                if (!EssentialKeyHooks.isAppAssigned(prefs, pkg)) {
-                                    EssentialKeyHooks.log(prefs, "su", "launch rejected: $pkg is not assigned to an Essential key gesture")
-                                    return
-                                }
+                                if (!EssentialKeyHooks.isAppAssigned(prefs, pkg)) return
                                 val now = SystemClock.uptimeMillis()
-                                if (now - lastEssentialLaunch < ESSENTIAL_DEBOUNCE_MS) {
-                                    EssentialKeyHooks.log(prefs, "su", "launch dropped by ${ESSENTIAL_DEBOUNCE_MS}ms debounce")
-                                    return
-                                }
+                                if (now - lastEssentialLaunch < ESSENTIAL_DEBOUNCE_MS) return
                                 lastEssentialLaunch = now
                                 Handler(Looper.getMainLooper()).post {
                                     launchAppFromSystemUI(app, pkg, classLoader)
@@ -432,7 +421,6 @@ class PowerButtonHooks : HookModule {
     }
 
     private fun vibrateClick(context: Context) {
-        EssentialKeyHooks.log(sEssentialLogPrefs, "su", "EFFECT_CLICK haptic (PowerButtonHooks.vibrateClick)")
         try {
             val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
             if (vibrator.hasVibrator()) {

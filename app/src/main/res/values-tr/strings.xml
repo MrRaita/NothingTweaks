@@ -214,8 +214,6 @@
     <string name="essential_action_flashlight">Feneri aç/kapat</string>
     <string name="essential_action_ringer">Ses modunu değiştir</string>
     <string name="essential_action_app">Uygulama aç</string>
-    <string name="pref_essential_debug_log_title">Essential tuşu günlüğü</string>
-    <string name="pref_essential_debug_log_summary">Tuş olaylarını logcat\'e yazar (etiket: EssentialKey)</string>
     <string name="cat_essential_space">Essential tuşu · Essential Space</string>
     <string name="pref_essential_block_capture_title">Ekran görüntüsü almayı kapat</string>
     <string name="pref_essential_block_capture_summary">Tuşa basmak ekran görüntüsü almaz</string>
@@ -228,8 +226,6 @@
     <string name="pref_essential_block_voice_hold_summary">Uzun basış Essential Voice\'i başlatmaz</string>
     <string name="pref_essential_block_voice_double_title">Çift basışta sesle yazmayı kapat</string>
     <string name="pref_essential_block_voice_double_summary">Çift basış Essential Voice\'i başlatmaz</string>
-    <string name="pref_essential_share_title">Ekran görüntüsünü uygulamaya gönder</string>
-    <string name="pref_essential_share_summary">Yakalama çubuğu açıkken basılı tutunca görüntüyü seçilen uygulamaya gönderir</string>
     <string name="pref_essential_capture_keyboard_title">Klavye açıkken ekran görüntüsü</string>
     <string name="pref_essential_capture_keyboard_summary">Klavye açıkken tek basış ekran görüntüsü alır</string>
 </resources>

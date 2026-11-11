@@ -468,12 +468,6 @@
             app:selectable="false"
             app:iconSpaceReserved="false" />
 
-        <SwitchPreferenceCompat
-            app:key="pref_essential_debug_log"
-            app:title="@string/pref_essential_debug_log_title"
-            app:summary="@string/pref_essential_debug_log_summary"
-            app:defaultValue="false"
-            app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -506,19 +500,6 @@
             app:title="@string/pref_essential_block_space_title"
             app:summary="@string/pref_essential_block_space_summary"
             app:defaultValue="false"
-            app:iconSpaceReserved="false" />
-
-        <SwitchPreferenceCompat
-            app:key="pref_essential_share_enabled"
-            app:title="@string/pref_essential_share_title"
-            app:summary="@string/pref_essential_share_summary"
-            app:defaultValue="false"
-            app:iconSpaceReserved="false" />
-
-        <Preference
-            app:key="pref_essential_share_app"
-            app:title="@string/pref_essential_app_title"
-            app:summary="@string/pref_essential_app_summary"
             app:iconSpaceReserved="false" />
 
     </PreferenceCategory>

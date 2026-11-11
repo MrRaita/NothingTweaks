@@ -26,10 +26,10 @@ class TorchHooks : HookModule {
         const val EXTRA_ESSENTIAL = "essential_key"
         private const val CHORD_WINDOW_MS = 500L
         private const val DEBOUNCE_MS = 1200L
+        private const val ESSENTIAL_DEBOUNCE_MS = 250L
 
         @Volatile
         private var sFlashlightController: Any? = null
-        @Volatile private var sLogPrefs: Prefs? = null
 
         @Volatile
         private var sContext: Context? = null
@@ -183,20 +183,13 @@ class TorchHooks : HookModule {
                         prefs.forceReload()
                         val fromEssentialKey = intent?.getBooleanExtra(EXTRA_ESSENTIAL, false) == true &&
                             EssentialKeyHooks.anyGestureUses(prefs, EssentialKeyHooks.ACTION_FLASHLIGHT)
-                        sLogPrefs = prefs
-                        EssentialKeyHooks.log(
-                            prefs, "su",
-                            "torch broadcast received receiver=${System.identityHashCode(this)} essential=$fromEssentialKey " +
-                                "volumeChordPref=${prefs.getBoolean(PREF_KEY, false)}"
-                        )
                         if (!fromEssentialKey && !prefs.getBoolean(PREF_KEY, false)) return
 
                         val targetContext = c ?: sContext ?: AndroidAppHelper.currentApplication() ?: return
                         val now = SystemClock.uptimeMillis()
-                        if (!fromEssentialKey && now - lastToggleTime <= DEBOUNCE_MS) {
-                            EssentialKeyHooks.log(prefs, "su", "torch toggle dropped by ${DEBOUNCE_MS}ms debounce")
-                        }
-                        if (fromEssentialKey || now - lastToggleTime > DEBOUNCE_MS) {
+                        // key presses are at least ~300 ms apart; the long chord debounce would swallow quick toggles
+                        val debounce = if (fromEssentialKey) ESSENTIAL_DEBOUNCE_MS else DEBOUNCE_MS
+                        if (now - lastToggleTime > debounce) {
                             lastToggleTime = now
                             volUpPressTime = 0L
                             volDownPressTime = 0L
@@ -287,7 +280,6 @@ class TorchHooks : HookModule {
     }
 
     private fun vibrate(context: Context) {
-        EssentialKeyHooks.log(sLogPrefs, "su", "torch haptic 50ms one-shot (TorchHooks)")
         try {
             val vibrator = context.getSystemService(Vibrator::class.java) ?: return
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
