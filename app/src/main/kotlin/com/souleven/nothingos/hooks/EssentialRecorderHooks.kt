@@ -76,7 +76,7 @@ class EssentialRecorderHooks : HookModule {
         hookProcessStart()
         hookScreenshotBitmap(lpparam.classLoader)
         hookMediaStore()
-        XposedBridge.log("$TAG [EssentialKey][hook] Recorder hooks installed (state publisher, screenshot share, MediaStore log)")
+        XposedBridge.log("$TAG [EssentialKey][hook] Recorder hooks installed (rev ${EssentialKeyHooks.REV})")
     }
 
     // ---------------------------------------------------------------- state publisher
@@ -144,7 +144,13 @@ class EssentialRecorderHooks : HookModule {
             XposedBridge.hookAllMethods(cls, "asBitmap", object : XC_MethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam) {
                     try {
-                        if (!shareConfigured()) return
+                        if (!shareConfigured()) {
+                            d("share") {
+                                "screenshot taken, sharing off (enabled=${prefs.getBoolean(EssentialKeyHooks.KEY_SHARE_ENABLED, false)} " +
+                                    "app='${prefs.getString(EssentialKeyHooks.KEY_SHARE_APP, "")}')"
+                            }
+                            return
+                        }
                         val bmp = param.result as? Bitmap ?: return
                         lastCapture = bmp.copy(Bitmap.Config.ARGB_8888, false)
                         d("share") { "kept ${bmp.width}x${bmp.height} screenshot copy for sharing (state=$state)" }

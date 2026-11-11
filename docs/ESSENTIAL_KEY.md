@@ -8,6 +8,7 @@ Features (Settings → "Essential key", "Essential key · Essential Space", "Ess
   bar open a hold just saves), disable opening Essential Space on double press.
 * **Send screenshot to an app**: with the capture bar open, a hold sends the screenshot to the chosen app
   (e.g. a translator) instead of recording a voice note.
+* **Screenshot with keyboard open**: a single press takes the screenshot although a keyboard is shown.
 * **Essential Voice** (dictation into a text field while a keyboard is open): switches to disable it on a long
   press and on a double press, whatever Transcribe / Translate is chosen in Nothing's settings.
 
@@ -41,6 +42,11 @@ PhoneWindowManager.handleKeyGesture (scan code 250)
   `ScreenCapture$ScreenshotHardwareBuffer.asBitmap()` to MediaStore (`Pictures/EssentialKey/essential_capture.png`,
   replaced on every share) and starts `ACTION_SEND image/png` for that package with a read grant. The Recorder only
   sends to the package that is configured in the module, whatever the request says.
+* Keyboard open: while `INtEssentialVoice.isImeVisible()` is true, `onRecord` hands every event to the voice
+  logic and returns before anything is forwarded to the Recorder (verified in bytecode and logs: no wake lock, no
+  Recorder transition). With "screenshot with keyboard open" a single press is replayed with `isImeVisible()`
+  answering false (thread-local, only for that replay), so it reaches the Recorder; double press and hold stay
+  with the voice logic, and while an Essential Voice session runs every press is passed through untouched.
 * Presses that Nothing's own guards would drop ("disabled when screen off / locked", "activate with a single tap
   first") are passed through untouched, so custom actions obey the same settings.
 
@@ -64,12 +70,12 @@ Essential Voice switches only need `android` and `com.android.systemui`.
 
 ## Debug log
 
-Settings → "Detailed key log" (off by default), then `su -c "logcat -v time" | grep EssentialKey`.
+Settings → "Essential key log" (off by default), then `su -c "logcat -v time" | grep EssentialKey`.
 Lines are `[EssentialKey][area] u=<uptimeMs> message`:
 
 | area   | shows |
 |--------|-------|
-| hook   | hooks installed at boot (and failures) |
+| hook   | hooks installed at boot (and failures), with the build revision (`rev`): a module update only takes effect after a reboot, so check it matches |
 | evt    | every raw key event at `onRecord`: DOWN/UP, OWN (swallowed) or PASS, and why |
 | cfg    | settings seen at a press: block when off/locked, interactive, locked, activate-by-tap, sequence policy |
 | cls    | gesture classification: press count, gaps, hold time, long press detection, result |

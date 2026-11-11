@@ -488,6 +488,13 @@
             app:iconSpaceReserved="false" />
 
         <SwitchPreferenceCompat
+            app:key="pref_essential_capture_with_keyboard"
+            app:title="@string/pref_essential_capture_keyboard_title"
+            app:summary="@string/pref_essential_capture_keyboard_summary"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
             app:key="pref_essential_block_voice_record"
             app:title="@string/pref_essential_block_record_title"
             app:summary="@string/pref_essential_block_record_summary"
@@ -510,15 +517,10 @@
 
         <Preference
             app:key="pref_essential_share_app"
-            app:title="@string/pref_essential_share_app_title"
+            app:title="@string/pref_essential_app_title"
             app:summary="@string/pref_essential_app_summary"
             app:iconSpaceReserved="false" />
 
-        <Preference
-            app:key="pref_essential_space_note"
-            app:summary="@string/pref_essential_space_note"
-            app:selectable="false"
-            app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -539,11 +541,6 @@
             app:defaultValue="false"
             app:iconSpaceReserved="false" />
 
-        <Preference
-            app:key="pref_essential_ai_note"
-            app:summary="@string/pref_essential_ai_note"
-            app:selectable="false"
-            app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
     <!-- 10. Battery & Charging -->
