@@ -71,7 +71,7 @@ class EssentialKeyHooks : HookModule {
         private const val ACTION_CAPTURE_IME = "capture_ime"
 
         /** Bumped on every build so that a log line tells which code is really running (module updates need a reboot). */
-        const val REV = 6
+        const val REV = 7
 
         val GESTURES = listOf("single", "double", "triple", "long")
 

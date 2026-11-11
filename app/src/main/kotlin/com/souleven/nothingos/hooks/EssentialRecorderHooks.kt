@@ -233,10 +233,17 @@ class EssentialRecorderHooks : HookModule {
                 d("share") { "writing the screenshot failed" }
                 return
             }
+            // an explicit grant outlives the intent: apps that read the image later, from a service or after
+            // their activity changed, would otherwise lose access to it
+            try {
+                app.grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (t: Throwable) {
+                d("share") { "grantUriPermission failed: $t" }
+            }
             val send = Intent(Intent.ACTION_SEND).apply {
                 type = "image/png"
                 putExtra(Intent.EXTRA_STREAM, uri)
-                clipData = ClipData.newRawUri("", uri)
+                clipData = ClipData.newUri(resolver, "Essential capture", uri)
                 setPackage(pkg)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }

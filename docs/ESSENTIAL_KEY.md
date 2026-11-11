@@ -40,7 +40,8 @@ PhoneWindowManager.handleKeyGesture (scan code 250)
 * Screenshot sharing: system_server (hold in `FOCUS`) writes `"<package>|<uptime>"` to
   `Settings.Secure nt_tweaks_es_share`; the Recorder process observes it, writes the screenshot it kept from
   `ScreenCapture$ScreenshotHardwareBuffer.asBitmap()` to MediaStore (`Pictures/EssentialKey/essential_capture.png`,
-  replaced on every share) and starts `ACTION_SEND image/png` for that package with a read grant. The Recorder only
+  replaced on every share) and starts `ACTION_SEND image/png` for that package with a read grant (intent flag plus an explicit
+  `grantUriPermission`, so the app can still read it after its activity changed). The Recorder only
   sends to the package that is configured in the module, whatever the request says.
 * Keyboard open: while `INtEssentialVoice.isImeVisible()` is true, `onRecord` hands every event to the voice
   logic and returns before anything is forwarded to the Recorder (verified in bytecode and logs: no wake lock, no
