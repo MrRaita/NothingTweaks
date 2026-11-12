@@ -228,4 +228,6 @@
     <string name="pref_essential_block_voice_double_summary">Çift basış Essential Voice\'i başlatmaz</string>
     <string name="pref_essential_capture_keyboard_title">Klavye açıkken ekran görüntüsü</string>
     <string name="pref_essential_capture_keyboard_summary">Klavye açıkken tek basış ekran görüntüsü alır</string>
+    <string name="pref_essential_diag_title">Yakalama tanı günlüğü</string>
+    <string name="pref_essential_diag_summary">Essential yakalama akışını günlüğe yazar (etiket: EssentialDiag)</string>
 </resources>

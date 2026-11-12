@@ -41,6 +41,7 @@ class EssentialRecorderHooks : HookModule {
                     STATE_RE.find(msg)?.let { publish(it.groupValues[1]) }
                 }
             })
+            EssentialDiag.install(prefs) // TEMPORARY, remove before the PR
             // a fresh Recorder process starts in IDLE; this also clears a state left behind by a killed process
             XposedHelpers.findAndHookMethod(Application::class.java, "onCreate", object : XC_MethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam) {

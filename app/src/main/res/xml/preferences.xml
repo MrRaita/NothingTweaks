@@ -468,6 +468,13 @@
             app:selectable="false"
             app:iconSpaceReserved="false" />
 
+        <SwitchPreferenceCompat
+            app:key="pref_essential_diag_log"
+            app:title="@string/pref_essential_diag_title"
+            app:summary="@string/pref_essential_diag_summary"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
     </PreferenceCategory>
 
     <PreferenceCategory

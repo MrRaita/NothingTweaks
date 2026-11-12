@@ -229,4 +229,6 @@
     <string name="pref_essential_block_voice_double_summary">Double press does not start Essential Voice</string>
     <string name="pref_essential_capture_keyboard_title">Screenshot with keyboard open</string>
     <string name="pref_essential_capture_keyboard_summary">A single press takes a screenshot while a keyboard is shown</string>
+    <string name="pref_essential_diag_title">Capture diagnostic log</string>
+    <string name="pref_essential_diag_summary">Log the Essential capture flow (tag EssentialDiag)</string>
 </resources>
