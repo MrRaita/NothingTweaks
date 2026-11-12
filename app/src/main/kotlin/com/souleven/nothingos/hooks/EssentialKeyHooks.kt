@@ -319,6 +319,7 @@ class EssentialKeyHooks : HookModule {
         latestPolicy = policy
         latestIme = ime
         ownedPress = policy.values.any { it != ACTION_DEFAULT } && !voiceActive() && !nativeGuardHit()
+        EssentialDiag.press(prefs, state, prefs.getBoolean(KEY_CAPTURE_WITH_KEYBOARD, false), imeVisible(), policy, ownedPress) // TEMPORARY
     }
 
     private fun needsEssentialState() =
@@ -507,6 +508,7 @@ class EssentialKeyHooks : HookModule {
         val method = origMethod ?: return
         val target = origTarget ?: return
         post(delayMs) {
+            if (bypassIme) EssentialDiag.note(prefs, "replay with the keyboard hidden from Nothing's code") // TEMPORARY
             if (bypassIme) imeBypass.set(true)
             try {
                 XposedBridge.invokeOriginalMethod(method, target, arrayOf<Any?>(KeyEvent(ev)))

@@ -58,6 +58,21 @@ object EssentialDiag {
         }
     }
 
+    // ---- system_server side (called from EssentialKeyHooks, remove together with this file) ----
+
+    fun press(prefs: Prefs, state: String, switchOn: Boolean, keyboardShown: Boolean, policy: Map<String, String>, owned: Boolean) {
+        if (!prefs.getBoolean(KEY_DIAG_LOG, false)) return
+        val changed = policy.filterValues { it != EssentialKeyHooks.ACTION_DEFAULT }
+        XposedBridge.log(
+            "$TAG [EssentialDiag] u=${SystemClock.uptimeMillis()} key DOWN recorderState=$state keyboardShown=$keyboardShown " +
+                "keyboardSwitch=$switchOn policy=$changed owned=$owned"
+        )
+    }
+
+    fun note(prefs: Prefs, text: String) {
+        if (prefs.getBoolean(KEY_DIAG_LOG, false)) XposedBridge.log("$TAG [EssentialDiag] u=${SystemClock.uptimeMillis()} $text")
+    }
+
     private fun snapshot(): String {
         val app = AndroidAppHelper.currentApplication() ?: return "no context"
         val foreground = (app.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)
