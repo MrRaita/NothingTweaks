@@ -34,8 +34,8 @@
     <string name="title_scramble_pin">PIN Tuşlarını Karıştır</string>
     <string name="summary_scramble_pin">PIN tuş takımındaki rakamların konumunu rastgele hale getirir.</string>
 
-    <string name="pref_keep_face_unlock_title">Yüz tanımayı aktif tut</string>
-    <string name="pref_keep_face_unlock_summary">Yüz tanımanın, zayıf biyometrik zaman aşımı nedeniyle kapanıp PIN istemesini engeller. Yeniden başlatmadan sonra PIN yine istenir. Yüz tanıma PIN veya parmak izinden daha az güvenlidir.</string>
+    <string name="pref_keep_face_unlock_title">Biyometrik kilit açmayı aktif tut</string>
+    <string name="pref_keep_face_unlock_summary">Kilit açıldıktan sonra bekleyen güncelleme hazırlığı veya zayıf biyometrik zaman aşımı nedeniyle yüz ve parmak izinin kapanıp PIN istemesini engeller. Yeniden başlatmadan sonra PIN yine istenir. Her zaman PIN istemekten daha az güvenlidir.</string>
     <string name="title_hide_lockscreen_clock">Saati Gizle</string>
     <string name="summary_hide_lockscreen_clock">Kilit ekranından saati gizle. Derinlik efektli duvar kağıtları için üçüncü taraf uygulamaları kullanırken kullanışlıdır.</string>
 

@@ -86,6 +86,8 @@ class BiometricStrongAuthHooks : HookModule {
             }
         }
 
+        hookUnattendedUpdateFlag(clazz, lpparam.classLoader, prefs)
+
         for (name in METHODS) {
             try {
                 val hooked = XposedBridge.hookAllMethods(clazz, name, callback)
@@ -96,6 +98,53 @@ class BiometricStrongAuthHooks : HookModule {
             } catch (t: Throwable) {
                 XposedBridge.log("$TAG [BiometricStrongAuth] FAILED to hook $name: ${t.message}")
             }
+        }
+    }
+
+    /**
+     * Resume-on-Reboot preparation (RecoverySystemService.requestLskf) asks for
+     * STRONG_AUTH_REQUIRED_FOR_UNATTENDED_UPDATE for all users, which disables
+     * every biometric until the PIN is entered. Drop only that bit.
+     *
+     * A request that is exactly this flag is skipped. Never turn a request into 0:
+     * requireStrongAuth(0, ..) clears ALL flags (including the one after reboot).
+     */
+    private fun hookUnattendedUpdateFlag(clazz: Class<*>, cl: ClassLoader, prefs: Prefs) {
+        val flag = try {
+            val tracker = XposedHelpers.findClass(
+                "com.android.internal.widget.LockPatternUtils\$StrongAuthTracker", cl
+            )
+            XposedHelpers.getStaticIntField(tracker, "STRONG_AUTH_REQUIRED_FOR_UNATTENDED_UPDATE")
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG [BiometricStrongAuth] unattended-update flag not found: ${t.message}")
+            return
+        }
+        XposedBridge.log(
+            "$TAG [BiometricStrongAuth] STRONG_AUTH_REQUIRED_FOR_UNATTENDED_UPDATE=0x" +
+                Integer.toHexString(flag)
+        )
+        if (flag == 0) return
+
+        try {
+            XposedBridge.hookAllMethods(clazz, "requireStrongAuth", object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    if (!prefs.getBoolean(KEY_KEEP_FACE_UNLOCK, false)) return
+                    val reason = param.args.getOrNull(0) as? Int ?: return
+                    if (reason and flag == 0) return
+                    val rest = reason and flag.inv()
+                    if (rest == 0) {
+                        param.result = null
+                    } else {
+                        param.args[0] = rest
+                    }
+                    XposedBridge.log(
+                        "$TAG [BiometricStrongAuth] dropped unattended-update flag " +
+                            "(0x${Integer.toHexString(reason)} -> 0x${Integer.toHexString(rest)})"
+                    )
+                }
+            })
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG [BiometricStrongAuth] FAILED to hook requireStrongAuth: ${t.message}")
         }
     }
 }
