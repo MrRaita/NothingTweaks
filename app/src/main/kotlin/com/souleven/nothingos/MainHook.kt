@@ -1,5 +1,6 @@
 package com.souleven.nothingos
 
+import com.souleven.nothingos.hooks.BiometricStrongAuthHooks
 import com.souleven.nothingos.hooks.ClockHooks
 import com.souleven.nothingos.hooks.EarphoneIconHooks
 import com.souleven.nothingos.hooks.FeatureFlagHooks
@@ -123,6 +124,7 @@ class MainHook : IXposedHookLoadPackage {
             hooks.add("BatteryCapHooks" to BatteryCapHooks())
             hooks.add("PowerButtonHooks" to PowerButtonHooks())
             hooks.add("VolumeStepsHooks" to VolumeStepsHooks())
+            hooks.add("BiometricStrongAuthHooks" to BiometricStrongAuthHooks())
         }
 
         if (lpparam.packageName == "android" || lpparam.packageName == PKG_SYSTEMUI) {
