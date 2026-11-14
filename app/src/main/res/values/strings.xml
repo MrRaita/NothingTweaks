@@ -34,6 +34,8 @@
     <string name="title_scramble_pin">Scramble PIN</string>
     <string name="summary_scramble_pin">Randomize the position of the PIN pad numbers.</string>
 
+    <string name="pref_keep_face_unlock_title">Keep face unlock active</string>
+    <string name="pref_keep_face_unlock_summary">Stop face unlock from being switched off by the non-strong biometric timeout, which asks for your PIN instead. Reboots still require the PIN. Face unlock is less secure than a PIN or fingerprint.</string>
     <string name="title_hide_lockscreen_clock">Hide Clock</string>
     <string name="summary_hide_lockscreen_clock">Hide the clock from the lockscreen. Useful while using third-party apps for depth effect wallpapers.</string>
 

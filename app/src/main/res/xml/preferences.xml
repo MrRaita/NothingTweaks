@@ -234,6 +234,13 @@
             app:iconSpaceReserved="false" />
 
         <SwitchPreferenceCompat
+            app:key="pref_keep_face_unlock"
+            app:title="@string/pref_keep_face_unlock_title"
+            app:summary="@string/pref_keep_face_unlock_summary"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
             app:key="disable_power_off_verify"
             app:title="@string/pref_power_off_verify"
             app:summary="@string/pref_power_off_verify_desc"
