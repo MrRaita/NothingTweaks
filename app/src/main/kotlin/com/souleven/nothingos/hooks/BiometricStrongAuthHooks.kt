@@ -32,6 +32,15 @@ class BiometricStrongAuthHooks : HookModule {
     @Volatile
     private var loggedOverride = false
 
+    // TEMPORARY diagnostics: remove before the PR.
+    private val DIAG_METHODS = arrayOf(
+        "requireStrongAuth",
+        "reportSuccessfulBiometricUnlock",
+        "reportSuccessfulStrongAuthUnlock",
+        "handleScheduleNonStrongBiometricTimeout",
+        "handleScheduleNonStrongBiometricIdleTimeout"
+    )
+
     override fun handleLoadPackage(lpparam: LoadPackageParam, prefs: Prefs) {
         if (lpparam.packageName != "android") return
 
@@ -43,6 +52,7 @@ class BiometricStrongAuthHooks : HookModule {
 
         val callback = object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
+                XposedBridge.log("$TAG [BiometricStrongAuth][diag] ${param.method.name}(${param.args.joinToString(",")}) enabled=${prefs.getBoolean(KEY_KEEP_FACE_UNLOCK, false)}")
                 if (!prefs.getBoolean(KEY_KEEP_FACE_UNLOCK, false)) return
                 if (param.args.getOrNull(0) != false) return
                 param.args[0] = true
@@ -56,9 +66,30 @@ class BiometricStrongAuthHooks : HookModule {
             }
         }
 
+        val diag = object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                val args = param.args.joinToString(",") { a ->
+                    if (param.method.name == "requireStrongAuth" && a is Int) "0x" + Integer.toHexString(a) else a.toString()
+                }
+                val caller = Throwable().stackTrace
+                    .drop(3).take(8).joinToString(" < ") { "${it.className.substringAfterLast('.')}.${it.methodName}" }
+                XposedBridge.log("$TAG [BiometricStrongAuth][diag] ${param.method.name}($args) enabled=${prefs.getBoolean(KEY_KEEP_FACE_UNLOCK, false)} from $caller")
+            }
+        }
+
+        for (name in DIAG_METHODS) {
+            try {
+                val hooked = XposedBridge.hookAllMethods(clazz, name, diag)
+                XposedBridge.log("$TAG [BiometricStrongAuth][diag] hooked $name x${hooked.size}")
+            } catch (t: Throwable) {
+                XposedBridge.log("$TAG [BiometricStrongAuth][diag] FAILED $name: ${t.message}")
+            }
+        }
+
         for (name in METHODS) {
             try {
                 val hooked = XposedBridge.hookAllMethods(clazz, name, callback)
+                XposedBridge.log("$TAG [BiometricStrongAuth] hooked $name x${hooked.size}")
                 if (hooked.isEmpty()) {
                     XposedBridge.log("$TAG [BiometricStrongAuth] method not found: $name")
                 }
